@@ -1,6 +1,6 @@
 ---
 title: "Project 3"
-author: "Kamlesh Pandey"
+author: "Shyam & Kamlesh"
 date: "11/9/2022"
 output: github_document
 ---
@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(readr)
 library(ggplot2)
-
+library(tidyr)
 ```
 
 # Introdcution  
@@ -25,17 +25,18 @@ Why this analysis is important ? From this predictive model, Mashable can predic
 # Data
 The dataset summarizes a heterogeneous set of features about articles published by in a period of two years.The dataset has 39644 data points and 61 feature columns. The project is aimed to subset the original dataset based on type of data channel (one of the six type) and then to predict the number of shares variable. For this project we are using ..... for training and building a predictive modeling and eventually same analysis will be used for remaining five data channel. User will have flexibility to choose the type of analysis they want based on their personal choice.  
 ```{r dataset, warning=FALSE, message=FALSE}
-newpopData <- readr::read_csv('OnlineNewsPopularity.csv',
+newspopData <- readr::read_csv('OnlineNewsPopularity.csv',
                               locale = locale(encoding = 'latin1'))
-head(newpopData,5)
+head(newspopData,5)
 ```  
 # Exploratory Data Analysis  
-Before starting EDA, target variable need to be normalize as it has high standard deviation (11600).
+Before starting EDA, target variable need to be normalize as it has high variance.  
 ```{r eda, warning=FALSE, message=FALSE}
-data("newpopData", package = "ggplot2")
-newpopData$scaledShare <- scale(newpopData$shares, center = T, scale = T)
+data("newspopData", package = "ggplot2")
+newspopData$scaledShare <- scale(newspopData$shares, center = T, scale = T)
+
 # scatterplot
-gg <- ggplot(newpopData, aes(x= n_tokens_content, y = scaledShare)) +
+gg <- ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
   geom_point()+
   labs(subtitle = 'Word Count Vs Number of Share',
        y = 'Number of Share (Scaled)',
@@ -43,4 +44,44 @@ gg <- ggplot(newpopData, aes(x= n_tokens_content, y = scaledShare)) +
        title = 'Scatterplot',
        caption = 'Source: News Popularity Dataset')
 plot(gg)
+```  
+This plot is about if the article is published during weekday or weekend. From the ordered bar chart more articles are published in weekdays
+```{r}
+# table for article published during week or weekend 
+df <- newspopData %>%select(starts_with('weekday'), shares)
+monCount <-  sum(df$weekday_is_monday * df$shares)/1e6
+tueCount <- sum(df$weekday_is_tuesday*df$shares)/1e6
+wedCount <- sum(df$weekday_is_wednesday*df$shares)/1e6
+thurCount <- sum(df$weekday_is_thursday*df$shares)/1e6
+friCount <- sum(df$weekday_is_friday*df$shares)/1e6
+satCount <- sum(df$weekday_is_saturday*df$shares)/1e6
+sunCount <- sum(df$weekday_is_sunday*df$shares)/1e6
+
+# creating a data frame
+df <- data.frame(Day <- c('Monday', 'Tuesday', 
+                          'Wednesday', 'Thursday', 
+                          'Friday', 'Saturday', 'Sunday'),
+                 count <-c(monCount, tueCount, wedCount,  
+                           thurCount, friCount,
+                           satCount, sunCount ))
+# plot
+gg <- ggplot(df, aes(x = factor(Day), y = count)) +
+  geom_bar(stat = 'identity', width = 0.5, fill = 'tomato3')+
+  labs(title = 'Bar Chart',
+       subtitle = 'Number of Shares (Million) Vs Day of Week',
+       caption = 'Source : News Popularity Dataset',
+       y = 'Total Share count in Million',
+       x = 'Day of the Week') +
+  theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
+plot(gg)
+```  
+
+```{r, warning=FALSE, message=FALSE}
+# trying to make facet plot for images and videos
+df <- newspopData%>%select(num_imgs, num_videos, shares)%>%
+  pivot_longer(cols = c('num_imgs', 'num_videos', 'shares'),
+                         names_to = 'params',
+                         values_to = 'count')
+df
 ```
+
