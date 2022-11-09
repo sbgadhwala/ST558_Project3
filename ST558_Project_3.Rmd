@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r lib_import, warning=FALSE, message=FALSE}
 library(dplyr)
 library(readr)
-
+library(ggplot2)
 
 ```
 
@@ -30,6 +30,17 @@ newpopData <- readr::read_csv('OnlineNewsPopularity.csv',
 head(newpopData,5)
 ```  
 # Exploratory Data Analysis  
+Before starting EDA, target variable need to be normalize as it has high standard deviation (11600).
 ```{r eda, warning=FALSE, message=FALSE}
-
+data("newpopData", package = "ggplot2")
+newpopData$scaledShare <- scale(newpopData$shares, center = T, scale = T)
+# scatterplot
+gg <- ggplot(newpopData, aes(x= n_tokens_content, y = scaledShare)) +
+  geom_point()+
+  labs(subtitle = 'Word Count Vs Number of Share',
+       y = 'Number of Share (Scaled)',
+       x = 'Number of Words in article', 
+       title = 'Scatterplot',
+       caption = 'Source: News Popularity Dataset')
+plot(gg)
 ```
