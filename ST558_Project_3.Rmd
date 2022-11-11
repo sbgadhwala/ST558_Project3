@@ -33,7 +33,7 @@ newspopData <- readr::read_csv('OnlineNewsPopularity.csv',
 # select specified data channel and drop other data channel columns
 # this should be replaced by param$data_channel
 newspopData <- newspopData %>% 
-  filter(data_channel_is_tech == 1)%>%
+  filter(params$data_channel == 1)%>%
   select(everything(), -starts_with('data_channel_is_'))
 
 datatable(newspopData)
@@ -49,10 +49,10 @@ corr.index <- round(cor(newspopData$scaledShare, newspopData$n_tokens_content),2
 # scatterplot
 gg <- ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
   geom_point()+
-  labs(subtitle = paste('Word Count Vs Number of Share', 'Tech', sep = ' : '), # need to automate this
+  labs(subtitle = paste('NEED TO AUTOMATE', 'Tech', sep = ' : '), # need to automate this
       y = 'Number of Share (Scaled)',
       x = 'Number of Words in article', 
-      title = 'Scatterplot',  # replace this with the main title
+      title = 'Word Count Vs Number of Share',  # replace this with the main title
       caption = 'Source: News Popularity Dataset') + 
       geom_text(x = 4000, y = 60, size = 4, label = paste0("Correlation coefficient = ", corr.index), color = 'red')
 plot(gg)
@@ -99,12 +99,12 @@ df <- newspopData%>%
 
 #trying to rename the days col
 #df$days <- apply(as.data.frame(df$Days), MARGIN = 2, FUN = function(x){sub(".*_is_ ", "" , x)})
-df
+datatable(df)
 ```  
 
 ```{r}
-par(mfrow = c(1,2))
 
+par(mfrow = c(1,2))
 gg <- ggplot(df, aes(x = global_rate_positive_words, y = global_sentiment_polarity)) + 
       geom_point(aes (col = Days, size = shares/1e5)) + 
       geom_smooth(aes(col = Days), method = 'lm', se = F) + 
@@ -125,6 +125,7 @@ gg1<- ggplot(df, aes(x = global_rate_negative_words, y = global_sentiment_polari
        title = "Needc to automate",
        caption = "Source : News Popularity Dataset")
 plot(gg1)
+
 ```  
 
 This plot estimates the general sentiments of users based on positive and negative words in the content. As expected, an article with more positive words has a positive sentiment index and more shares.
