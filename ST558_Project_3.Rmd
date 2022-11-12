@@ -28,8 +28,7 @@ newspopData <- read_csv('OnlineNewsPopularity.csv',
                               locale = locale(encoding = 'latin1'))
 # select specified data channel and drop other data channel columns
 # this should be replaced by param$data_channel
-newspopData <- newspopData %>% 
-  filter(data_channel_is_tech == 1)%>%
+newspopData <- filter(newspopData, newspopData[params$data_channel]== 1)%>%
   select(everything(), -starts_with('data_channel_is_'), -url)
 
 
