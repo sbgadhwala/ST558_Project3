@@ -48,10 +48,10 @@ corr.index <- round(cor(newspopData$scaledShare, newspopData$n_tokens_content),2
 # scatterplot
 ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
   geom_point()+
-  labs(subtitle = paste('NEED TO AUTOMATE', 'Tech', sep = ' : '), # need to automate this
+  labs(subtitle = 'Word Count v/s Number of Shares', # need to automate this
       y = 'Number of Share (Scaled)',
       x = 'Number of Words in article', 
-      title = 'Word Count Vs Number of Share',  # replace this with the main title
+      title = toupper(str_replace_all(params$data_channel, "_", " ")),  # replace this with the main title
       caption = 'Source: News Popularity Dataset') + 
       geom_text(x = 4000, y = 60, size = 4, 
                 label = paste0("Correlation coefficient = ", corr.index), color = 'red')
@@ -79,36 +79,38 @@ newspopData$day <- as_factor(newspopData$day)
 
 ggplot(newspopData, aes(x = day, y = shares/1000000)) +
   geom_bar(stat = 'identity', width = 0.5, fill = 'tomato3')+
-  labs(title = 'Bar Chart',
-       subtitle = paste('Number of Shares (Million) Vs Day of Week','data channel is Tech', sep = ' : '), # need to automate this too
+  labs(subtitle = 'Number of Shares (Million) Vs Day of Week', # need to automate this too
        caption = 'Source : News Popularity Dataset',
        y = 'Total Share count in Million',
-       x = 'Day of the Week') +
+       x = 'Day of the Week',
+       title = toupper(str_replace_all(params$data_channel, "_", " ")),) +
   theme(axis.text.x = element_text(angle = 65, vjust = 0.6))
 
 ```  
 From this bar chart we can visualize the shares trend across the week. The users engagement with the type of data Chanel (tech, entertainment, politics) will be different across the week. Users may be more inclined toward sharing lifestyle and entertainment news during weekend and prefer less to share technology/science related news during same time.
 
 ```{r}
-par(mfrow = c(1,2))
-gg <- ggplot(newspopData, aes(x = global_rate_positive_words, y = global_sentiment_polarity)) + 
-      geom_point(aes (col = day, size = shares/1e5)) + 
+ggplot(newspopData, aes(x = global_rate_positive_words, y = global_sentiment_polarity)) + 
+      geom_point(aes (col = day, size = shares/1e6)) + 
       geom_smooth(aes(col = day), method = 'lm', se = F) + 
   labs(subtitle = 'Positive Rate VS Sentiment Polarity Plot',
        x = 'Global Positive Word Rate',
        y = 'Global Sentiment Polarity',
-       title = "Needc to automate",
+       title = toupper(str_replace_all(params$data_channel, "_", " ")),
        caption = "Source : News Popularity Dataset")
-plot(gg)
-gg1<- ggplot(newspopData, aes(x = global_rate_negative_words, y = global_sentiment_polarity)) + 
-      geom_point(aes (col = day, size = shares/1e5)) + 
+
+```
+
+
+```{r}
+ggplot(newspopData, aes(x = global_rate_negative_words, y = global_sentiment_polarity)) + 
+      geom_point(aes (col = day, size = shares/1e6)) + 
       geom_smooth(aes(col = day), method = 'lm', se = F) + 
   labs(subtitle = 'Positive Rate VS Sentiment Polarity Plot',
        x = 'Global Negative Word Rate',
        y = 'Global Sentiment Polarity',
-       title = "Needc to automate",
+       title = toupper(str_replace_all(params$data_channel, "_", " ")),
        caption = "Source : News Popularity Dataset")
-plot(gg1)
 ```  
 
 This plot estimates the general sentiments of users based on positive and negative words in the content. As expected, an article with more positive words has a positive sentiment index and more shares.
@@ -116,17 +118,18 @@ This plot estimates the general sentiments of users based on positive and negati
 ### Shyam #####
 Plotting the number of shares based on the number of images and videos that an article has, based on what day of the week it is:
 
-```{r}
+```{r, warning=FALSE, fig.width=20}
 
 
-ggplot(newspopData, aes(x=shares, y =   num_imgs)) + 
-  geom_point(aes(col = day)) + 
-  geom_smooth(aes(col = day), method = 'lm', se = F) +
-  xlim(0, 20000)
-
-ggplot(newspopData, aes(x=shares, y =   num_videos)) + 
-  geom_point(aes(col = day))
-
+ggplot(newspopData, aes(x=day, y =   shares/1000000)) + 
+  geom_bar(aes(fill = as_factor(num_imgs)), stat="identity", position="dodge") + 
+  #geom_smooth(aes(col = day), method = 'lm', se = F) +
+  ylim(0, 0.12) +
+  labs(subtitle = 'Number of Images in article v/s number of shares',
+       x = 'Number of Images',
+       y = 'Number of shares (in millions)',
+       title = toupper(str_replace_all(params$data_channel, "_", " ")),
+       caption = "Source : News Popularity Dataset")
 
 ```
 
@@ -138,7 +141,48 @@ ggplot(newspopData, aes(x =  num_keywords, y =  shares/1000000)) +
   labs(subtitle = 'Shares based on number of keywords',
        x = 'Number of Keywords',
        y = 'Shares (in millions)',
-       title = "Need to automate",
+       title = toupper(str_replace_all(params$data_channel, "_", " ")),
        caption = "Source : News Popularity Dataset")
+
+```
+
+
+```{r}
+
+pols = c("Extremely Positive", "Positive", "Negative", "Extremely Negative")
+
+newspopData <- newspopData %>% mutate(title_Sentiment_Class = 
+                                        if_else(title_sentiment_polarity > 0.5, pols[1],
+                                        if_else(title_sentiment_polarity > 0, pols[2],
+                                        if_else(title_sentiment_polarity > -0.5, pols[3], pols[4]))))
+
+
+newspopData$title_Sentiment_Class <- as_factor(newspopData$title_Sentiment_Class)
+```
+
+```{r}
+ggplot(newspopData, aes(x=title_Sentiment_Class, y=shares/1000000)) +
+  geom_bar(aes(fill = day), stat="identity", position="dodge") +
+  labs(subtitle = 'Shares based on title sentiment and day of the week',
+       x = 'Sentiment Category',
+       y = 'Shares (in millions)',
+       title = toupper(str_replace_all(params$data_channel, "_", " ")),
+       caption = "Source : News Popularity Dataset")
+
+```
+
+
+```{r, fig.width=20}
+
+ggplot(newspopData, aes(x= title_sentiment_polarity)) +
+  geom_density(aes(fill=title_Sentiment_Class), alpha = 0.7) +
+  facet_grid(. ~day)+
+  scale_fill_discrete(name = "Title Sentiment") +
+  labs(subtitle = 'Distribution of articles on title sentiment and day of the week',
+       x = 'Title Sentiment Polarity',
+       y = 'Density',
+       title = toupper(str_replace_all(params$data_channel, "_", " ")),
+       caption = "Source : News Popularity Dataset")
+
 
 ```
