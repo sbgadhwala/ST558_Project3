@@ -61,7 +61,7 @@ ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
 We can inspect trend of Number of shares (scaled) as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficient.  
 
 
-```{r}
+```{r, warning=FALSE}
 newspopData <- newspopData %>% mutate(day = if_else(weekday_is_monday==1, "Monday", 
                                             if_else(weekday_is_tuesday==1, "Tuesday",
                                             if_else(weekday_is_wednesday==1, "Wednesday",
@@ -115,16 +115,15 @@ ggplot(newspopData, aes(x = global_rate_negative_words, y = global_sentiment_pol
 
 This plot estimates the general sentiments of users based on positive and negative words in the content. As expected, an article with more positive words has a positive sentiment index and more shares.
 
-### Shyam #####
+                                                                        ### Shyam #####
 Plotting the number of shares based on the number of images and videos that an article has, based on what day of the week it is:
 
 ```{r, warning=FALSE, fig.width=20}
 
-
 ggplot(newspopData, aes(x=day, y =   shares/1000000)) + 
   geom_bar(aes(fill = as_factor(num_imgs)), stat="identity", position="dodge") + 
   #geom_smooth(aes(col = day), method = 'lm', se = F) +
-  ylim(0, 0.12) +
+  #ylim(0, 0.12) +
   labs(subtitle = 'Number of Images in article v/s number of shares',
        x = 'Number of Images',
        y = 'Number of shares (in millions)',
@@ -132,7 +131,6 @@ ggplot(newspopData, aes(x=day, y =   shares/1000000)) +
        caption = "Source : News Popularity Dataset")
 
 ```
-
 
 ```{r, warning=FALSE}
 ggplot(newspopData, aes(x =  num_keywords, y =  shares/1000000)) + 
@@ -164,10 +162,16 @@ newspopData$title_Sentiment_Class <- as_factor(newspopData$title_Sentiment_Class
 ggplot(newspopData, aes(x=title_Sentiment_Class, y=shares/1000000)) +
   geom_bar(aes(fill = day), stat="identity", position="dodge") +
   labs(subtitle = 'Shares based on title sentiment and day of the week',
-       x = 'Sentiment Category',
+       x = 'Title Sentiment Category',
        y = 'Shares (in millions)',
        title = toupper(str_replace_all(params$data_channel, "_", " ")),
-       caption = "Source : News Popularity Dataset")
+       caption = "Source : News Popularity Dataset") +
+      geom_text(x = 3, y = 0.6, size = 3, 
+                label = paste("Title Sentiment Score range", "Extremely Positive = 0.5 <--> 1", 
+                              'Positive = 0 <--> 0.5 ', 
+                              'Negative = -0.5 <--> 0', 
+                              'Extremely Negative = -1 <--> -0.5', 
+                              sep = '\n' ), color = 'black')
 
 ```
 
