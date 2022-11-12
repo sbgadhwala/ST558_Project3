@@ -9,7 +9,7 @@ Kamlesh Pandey
 library(dplyr)
 library(readr)
 ```
-
+[Hello Link to Tech](data_channel_is_lifestyle.html)
 # Introdcution
 
 We are living in a digital world where we are more concerned about our
