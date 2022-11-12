@@ -21,8 +21,8 @@ library(DT)
 ```
 
 # Introdcution  
-We are living in a digital world where we are more concerned about our digital footprint and people often look toward the like and share they get on a post that they publish online. We have several social media websites and print media to share our articles. Online print media platform like [Mashable](www.mashable.com) publishes thousand of online media everyday and it is important for them get a more user engagement from the the article they post online. In this dataset we are trying to predict the share based on several predictor columns such as text sentiment polarity, rate of negative words, rate of positive words, and many more.
-Why this analysis is important ? From this predictive model, Mashable can predict the number of share they can receive based on the type of article they are publishing online.  
+We are living in a digital world where people are more concerned about the digital footprint and people often consider the like and shares they get on a post that they publish online as an important metric. We have several social media websites and print media to share our articles. Online print media platform like [Mashable](www.mashable.com) publishes thousand of online media everyday and it is important for them get a more user engagement from the the article they post online. In this dataset we are trying to predict the shares based on several predictor, such as text sentiment polarity, rate of negative words, rate of positive words, and many more.
+Why this analysis is important ? From this predictive model, Mashable can predict the number of shares they can receive based on the type of article they are publishing online.  
 
 
 # Data
@@ -33,7 +33,7 @@ newspopData <- readr::read_csv('OnlineNewsPopularity.csv',
 # select specified data channel and drop other data channel columns
 # this should be replaced by param$data_channel
 newspopData <- newspopData %>% 
-  filter(params$data_channel == 1)%>%
+  filter(data_channel_is_tech == 1)%>%
   select(everything(), -starts_with('data_channel_is_'))
 
 datatable(newspopData)
