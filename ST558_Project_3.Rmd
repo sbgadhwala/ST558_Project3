@@ -14,6 +14,7 @@ library(ggplot2)
 library(tidyr)
 library(DT)
 library(tidyverse)
+library(caret)
 ```
 
 # Introdcution  
@@ -188,5 +189,80 @@ ggplot(newspopData, aes(x= title_sentiment_polarity)) +
        title = toupper(str_replace_all(params$data_channel, "_", " ")),
        caption = "Source : News Popularity Dataset")
 
+
+```
+
+
+# Modelling
+
+## Variable Selection
+
+Subset Selection for Model
+```{r}
+
+model <- lm(shares~., data = newspopData)
+
+
+summary(model)
+#plot(model)
+```
+
+```{r}
+
+PCs <- prcomp(newspopData %>% select(-shares, -day, -title_Sentiment_Class), center=TRUE, scale=TRUE)
+#pca
+
+var = cumsum(PCs$sdev**2/sum(PCs$sdev**2))
+
+show(plot(var, xlab = "Principal Component",
+ylab = "Cum. Prop of Variance Explained", ylim = c(0, 1), type = 'b'))
+
+pt <- min(which(var > 0.80))
+
+points(pt, var[pt], col="red", cex=2, pch=20)
+text(8, 0.8, col="red", paste0(round(100*var[pt],2), "% variance \nis explained by ", pt, " \nnumber of PC(s)"))
+```
+
+
+```{r}
+
+TreeModelData <- predict(PCs, newdata = newspopData) %>% 
+  as_tibble() %>% 
+  select(PC1:paste0("PC", pt))
+
+TreeModelData$shares <- newspopData$shares
+TreeModelData
+```
+
+
+```{r}
+set.seed(200)
+trainIndex <- createDataPartition(newspopData$shares, p = 0.7, list = FALSE)
+
+trainData <- newspopData[trainIndex, ]
+testData <- newspopData[-trainIndex, ]
+
+```
+
+
+```{r}
+set.seed(400)
+trctrl <- trainControl(method = "repeatedcv", number = 3)
+randomForest <- train(shares ~., data = trainData, 
+                      method = "rf",
+                      trControl=trctrl,
+                      preProcess = c("center", "scale"),
+                      tuneGrid = expand.grid(mtry = 1:as.integer(pt/3)))
+
+randomForest
+
+
+```
+
+
+```{r}
+rfPredict <- predict(randomForest, newdata = testData)
+randomFRes <- postResample(rfPredict, obs = testData$shares)
+randomFRes
 
 ```
