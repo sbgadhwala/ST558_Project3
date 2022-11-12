@@ -7,10 +7,6 @@ params:
   data_channel: "data_channel_is_tech"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Library  
 ```{r lib_import, warning=FALSE, message=FALSE}
 library(dplyr)
@@ -18,10 +14,7 @@ library(readr)
 library(ggplot2)
 library(tidyr)
 library(DT)
-<<<<<<< HEAD
 library(tidyverse)
-=======
->>>>>>> eae8397b34e8fe56fb0b8d36bb0db65d0c2db9c4
 ```
 
 # Introdcution  
@@ -38,16 +31,13 @@ newspopData <- read_csv('OnlineNewsPopularity.csv',
 # this should be replaced by param$data_channel
 newspopData <- newspopData %>% 
   filter(data_channel_is_tech == 1)%>%
-<<<<<<< HEAD
   select(everything(), -starts_with('data_channel_is_'), -url)
 
 
-newspopData
-=======
+newspopData %>%
   select(everything(), -starts_with('data_channel_is_'))
 
 datatable(newspopData)
->>>>>>> eae8397b34e8fe56fb0b8d36bb0db65d0c2db9c4
 ```  
 # Exploratory Data Analysis  
 Before starting EDA, target variable need to be normalize as it has high variance.  
@@ -57,33 +47,6 @@ newspopData$scaledShare <- scale(newspopData$shares, center = T, scale = T)
 
 #calculating correlation index
 corr.index <- round(cor(newspopData$scaledShare, newspopData$n_tokens_content),2)
-<<<<<<< HEAD
-=======
-# scatterplot
-gg <- ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
-  geom_point()+
-  labs(subtitle = paste('NEED TO AUTOMATE', 'Tech', sep = ' : '), # need to automate this
-      y = 'Number of Share (Scaled)',
-      x = 'Number of Words in article', 
-      title = 'Word Count Vs Number of Share',  # replace this with the main title
-      caption = 'Source: News Popularity Dataset') + 
-      geom_text(x = 4000, y = 60, size = 4, label = paste0("Correlation coefficient = ", corr.index), color = 'red')
-plot(gg)
-```  
-
-We can inspect trend of Number of shares (scaled) as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficient.  
-```{r}
-# table for article published during week or weekend 
-df <- newspopData %>%select(starts_with('weekday'), shares)
-monCount  <-  sum(df$weekday_is_monday * df$shares)/1e6
-tueCount  <- sum(df$weekday_is_tuesday*df$shares)/1e6
-wedCount  <- sum(df$weekday_is_wednesday*df$shares)/1e6
-thurCount <- sum(df$weekday_is_thursday*df$shares)/1e6
-friCount  <- sum(df$weekday_is_friday*df$shares)/1e6
-satCount  <- sum(df$weekday_is_saturday*df$shares)/1e6
-sunCount  <- sum(df$weekday_is_sunday*df$shares)/1e6
->>>>>>> eae8397b34e8fe56fb0b8d36bb0db65d0c2db9c4
-
 # scatterplot
 ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
   geom_point()+
@@ -96,6 +59,9 @@ ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
                 label = paste0("Correlation coefficient = ", corr.index), color = 'red')
 
 ```  
+
+We can inspect trend of Number of shares (scaled) as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficient.  
+
 
 We can inspect trend of Number of shares (scaled) as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficient.  
 
@@ -150,7 +116,6 @@ gg1<- ggplot(newspopData, aes(x = global_rate_negative_words, y = global_sentime
        caption = "Source : News Popularity Dataset")
 plot(gg1)
 ```  
-<<<<<<< HEAD
 
 This plot estimates the general sentiments of users based on positive and negative words in the content. As expected, an article with more positive words has a positive sentiment index and more shares.
 
@@ -170,50 +135,6 @@ ggplot(newspopData, aes(x=shares, y =   num_videos)) +
 
 
 ```
-=======
-From this bar chart we can visualize the shares trend across the week. The users engagement with the type of data Chanel (tech, entertainment, politics) will be different across the week. Users may be more inclined toward sharing lifestyle and entertainment news during weekend and prefer less to share technology/science related news during same time.  
-```{r, warning=FALSE, message=FALSE}
-# contingency table
-df <- newspopData%>%
-  select(shares, starts_with('weekday_is'),  global_sentiment_polarity, starts_with('global_rate_'))%>%
-  pivot_longer(cols = starts_with('weekday_is_'),
-                         names_to = 'Days',
-                         values_to = 'count') %>% filter(count == 1) %>% select(everything(), -count)
-
-#trying to rename the days col
-#df$days <- apply(as.data.frame(df$Days), MARGIN = 2, FUN = function(x){sub(".*_is_ ", "" , x)})
-datatable(df)
-```  
-
-```{r}
-
-par(mfrow = c(1,2))
-gg <- ggplot(df, aes(x = global_rate_positive_words, y = global_sentiment_polarity)) + 
-      geom_point(aes (col = Days, size = shares/1e5)) + 
-      geom_smooth(aes(col = Days), method = 'lm', se = F) + 
-  labs(subtitle = 'Positive Rate VS Sentiment Polarity Plot',
-       x = 'Global Positive Word Rate',
-       y = 'Global Sentiment Polarity',
-       title = "Needc to automate",
-       caption = "Source : News Popularity Dataset")
-
-plot(gg)
-
-gg1<- ggplot(df, aes(x = global_rate_negative_words, y = global_sentiment_polarity)) + 
-      geom_point(aes (col = Days, size = shares/1e5)) + 
-      geom_smooth(aes(col = Days), method = 'lm', se = F) + 
-  labs(subtitle = 'Positive Rate VS Sentiment Polarity Plot',
-       x = 'Global Negative Word Rate',
-       y = 'Global Sentiment Polarity',
-       title = "Needc to automate",
-       caption = "Source : News Popularity Dataset")
-plot(gg1)
-
-```  
-
-This plot estimates the general sentiments of users based on positive and negative words in the content. As expected, an article with more positive words has a positive sentiment index and more shares.
-
->>>>>>> eae8397b34e8fe56fb0b8d36bb0db65d0c2db9c4
 
 
 ```{r, warning=FALSE}
