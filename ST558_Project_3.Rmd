@@ -1,7 +1,6 @@
 ---
 title: "Project 3"
-author: "Shyam & Kamlesh"
-date: "11/9/2022"
+author: "Shyam Gadhwala & Kamlesh Pandey"
 output: github_document
 params:
   data_channel: "data_channel_is_tech"
@@ -63,11 +62,7 @@ ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
 We can inspect trend of Number of shares (scaled) as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficient.  
 
 
-We can inspect trend of Number of shares (scaled) as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficient.  
-
 ```{r}
-
-
 newspopData <- newspopData %>% mutate(day = if_else(weekday_is_monday==1, "Monday", 
                                             if_else(weekday_is_tuesday==1, "Tuesday",
                                             if_else(weekday_is_wednesday==1, "Wednesday",
@@ -119,7 +114,7 @@ plot(gg1)
 
 This plot estimates the general sentiments of users based on positive and negative words in the content. As expected, an article with more positive words has a positive sentiment index and more shares.
 
-
+### Shyam #####
 Plotting the number of shares based on the number of images and videos that an article has, based on what day of the week it is:
 
 ```{r}
