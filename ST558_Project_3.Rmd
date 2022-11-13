@@ -189,23 +189,58 @@ ggplot(newspopData, aes(x= title_sentiment_polarity)) +
        title = toupper(str_replace_all(params$data_channel, "_", " ")),
        caption = "Source : News Popularity Dataset")
 
-
 ```
 
 
-# Modelling
+# Modelling  
 
-## Variable Selection
+## Variable Selection  
+```{r}
+modelLm <- lm(shares ~ . , 
+              data = newspopData %>% 
+                select(-day, -scaledShare, -title_Sentiment_Class))
+pVal <- data.frame(summary(modelLm)$coefficients[,4])
+pVal$row_names <- row.names(pVal)
+pVal <- pVal %>% filter(pVal[,1] < 0.10)
+cols = c()
+if (pVal[,2][1] == "(Intercept)"){
+  cols = pVal[,2][-1]
+}else{
+  cols = pVal[,2]
+}
+cols
 
-Subset Selection for Model
+```
+
+## Train Test Split  
+```{r}
+set.seed(42)
+index <- sample(1:dim(newspopData)[1], dim(newspopData)[1]*0.7, replace = F)
+trainDf <- newspopData[index, ]
+testDf  <- newspopData[-index, ]
+
+```
+
+## Lasso Regression  
 ```{r}
 
-model <- lm(shares~., data = newspopData)
+fitLASSO <- train(shares ~. , data = trainDf %>% select(cols, shares), 
+                  method = "lm",
+                  preProcess = c("center", "scale"), 
+                  trControl = trainControl(method = "cv", number = 3)
+                  )
+fitLASSO
 
+coeff <- predict(fitLASSO$finalModel, type = "coef", mode = "fraction",
+s = fitLASSO$bestTune$fraction, testDf)
+print(coeff)
 
-summary(model)
-#plot(model)
+predLASSO <- predict(fitLASSO, newdata = testDf)
+lassoRes <- postResample(predLASSO, obs = testDf$shares)
+lassoRes
 ```
+
+## Variable Selection :PCA
 
 ```{r}
 
@@ -245,6 +280,7 @@ testData <- newspopData[-trainIndex, ]
 ```
 
 
+## Random Forest
 ```{r}
 set.seed(400)
 trctrl <- trainControl(method = "repeatedcv", number = 3)
@@ -265,4 +301,23 @@ rfPredict <- predict(randomForest, newdata = testData)
 randomFRes <- postResample(rfPredict, obs = testData$shares)
 randomFRes
 
+```
+
+## Boosted Tree  
+```{r}
+boostedTree <- train(shares ~., data = trainData, method = "gbm",
+                     trControl = trainControl(method = "repeatedcv", number = 3),
+                     preProcess = c("center", "scale"),
+                     tuneGrid = expand.grid(n.trees = c(25, 50, 100, 150, 200),
+                                            interaction.depth = 1:4,
+                                            shrinkage = 0.1,
+                                            n.minobsinnode = 10),
+                     verbose = FALSE)
+#boostedTree
+
+# prediction
+boostedTPredict <- predict(boostedTree, newdata = testData)
+boostedTRes <- postResample(boostedTPredict, obs = testData$shares)
+
+boostedTRes
 ```
