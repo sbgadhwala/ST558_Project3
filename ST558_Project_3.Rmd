@@ -201,7 +201,7 @@ modelLm <- lm(shares ~ . ,
                 select(-day, -scaledShare, -title_Sentiment_Class))
 pVal <- data.frame(summary(modelLm)$coefficients[,4])
 pVal$row_names <- row.names(pVal)
-pVal <- pVal %>% filter(pVal[,1] < 0.10)
+pVal <- pVal %>% filter(pVal[,1] < 0.05)
 cols = c()
 if (pVal[,2][1] == "(Intercept)"){
   cols = pVal[,2][-1]
@@ -221,6 +221,24 @@ testDf  <- newspopData[-index, ]
 
 ```
 
+
+## Forward Stepwise Regression
+```{r, warning=FALSE, message=FALSE}
+
+swFroward <- train(shares ~ ., data = trainDf,
+                    preProcess = c("center", "scale"),
+                    method = "leapForward")
+
+
+swFrowardPrediction <- predict(swFroward, newdata = testDf)
+
+
+swForwardRes <- postResample(swFrowardPrediction, obs = testDf$shares)
+swForwardRes
+
+```
+
+
 ## Lasso Regression  
 ```{r}
 
@@ -231,9 +249,9 @@ fitLASSO <- train(shares ~. , data = trainDf %>% select(cols, shares),
                   )
 fitLASSO
 
-coeff <- predict(fitLASSO$finalModel, type = "coef", mode = "fraction",
-s = fitLASSO$bestTune$fraction, testDf)
-print(coeff)
+#coeff <- predict(fitLASSO$finalModel, type = "coef", mode = "fraction",
+#s = fitLASSO$bestTune$fraction, testDf)
+#print(coeff)
 
 predLASSO <- predict(fitLASSO, newdata = testDf)
 lassoRes <- postResample(predLASSO, obs = testDf$shares)
