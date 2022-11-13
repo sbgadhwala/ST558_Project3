@@ -290,10 +290,10 @@ TreeModelData
 
 ```{r}
 set.seed(200)
-trainIndex <- createDataPartition(newspopData$shares, p = 0.7, list = FALSE)
+trainIndex <- createDataPartition(TreeModelData$shares, p = 0.7, list = FALSE)
 
-trainData <- newspopData[trainIndex, ]
-testData <- newspopData[-trainIndex, ]
+trainData <- TreeModelData[trainIndex, ]
+testData <- TreeModelData[-trainIndex, ]
 
 ```
 
