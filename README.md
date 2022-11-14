@@ -2,7 +2,7 @@
 
 
 
-This repository is final submission for ST-558 project by Shyam Gadhwala & Kamlesh Pandey. In this project we are predicting the number of shares for an article published in [Mashable](www.mashable.com) website.  
+This repository is final submission for ST-558 project by Shyam Gadhwala & Kamlesh Pandey. In this project we are predicting the number of shares for an article published in [Mashable](https://mashable.com/) website.  
 For this project, we have utlised R programming language and its several libraries for data analysis, visualization, and predictive modeling. R libraries used in the analysis is listed below  
 
 ```{r}
