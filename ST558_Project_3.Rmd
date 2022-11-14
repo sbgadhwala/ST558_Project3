@@ -168,8 +168,6 @@ ggplot(newspopData, aes(x =  num_keywords, y =  shares/1000000)) +
   
 This graph represents the shares trend of any article based on the number of keywords. A general speculated trend would be: the higher the number of keywords, the higher it is descriptive about its content, and hence the number of shares would also be higher. However. this might not hold true for business based articles where short and crisp key words can also do the trick. Otherwise, the trend of shares should be positive with respect to number of keywords.
 
-  
-  
 Now, the title sentiment polarity is one of the first things that users read while making a decision about reading an article let alone sharing it. Hence it is important to see how is the title sentiment polarity, is it negative or positive. Here, we are dividing the polarities into 4 sections; Highly positive (Sentiment Polarity between 0.5 and 1), positive (Sentiment Polarity between 0 and 0.5), negative ((Sentiment Polarity between -0.5 and 0)) and highly negative (Sentiment Polarity between -1 and -0.5).
 
 Creating the new variable to classify the sentiments into above category:
@@ -203,6 +201,25 @@ knitr::kable(newspopData %>% group_by(title_Sentiment_Class, day) %>% summarize(
 ```
 
 This table further shows the shares of different title sentimental types of articles for each day of the week.
+
+```{r}
+
+newspopData <- newspopData %>% mutate(content_Sentiment_Class = 
+                                        if_else( global_sentiment_polarity > 0.5, pols[1],
+                                        if_else( global_sentiment_polarity > 0, pols[2],
+                                        if_else( global_sentiment_polarity > -0.5, pols[3], pols[4]))))
+
+
+newspopData$content_Sentiment_Class <- as_factor(newspopData$content_Sentiment_Class)
+
+# average article length 
+knitr::kable(newspopData %>%
+  group_by(content_Sentiment_Class, day)%>%
+    select(day, content_Sentiment_Class, n_tokens_content) %>%
+    summarise(Average_Content_Length = round(sum(n_tokens_content)/n())))
+
+```  
+We further want to extend our analysis based on the average number of tokens on an article published during the weekdays and weekend.
 
 ```{r}
 ggplot(newspopData, aes(x=title_Sentiment_Class, y=shares/1000000)) +
@@ -247,11 +264,35 @@ The plot above shows the density of distribution of the shares of each type of t
 
 # Modelling  
 
-## Variable Selection  
 ```{r}
-modelLm <- lm(shares ~ . , 
-              data = newspopData %>% 
-                select(-day, -scaledShare, -title_Sentiment_Class))
+par(mfrow = c(1,2))
+ggplot(newspopData) + geom_density(aes(x = shares))+ 
+  labs(title = "Shares Predictor Distribution in Dataset")
+ggplot(newspopData) + geom_density(aes(x = log(shares)))+
+  labs(title = "Log(Share) distribution in the Dataset")
+```  
+
+## Train Test Split  
+```{r}
+set.seed(42)
+#removing mutated variables from the dataset
+newspopData <- newspopData %>%
+  select(-day, -scaledShare, 
+         -title_Sentiment_Class,
+         -content_Sentiment_Class)
+index <- sample(1:dim(newspopData)[1], dim(newspopData)[1]*0.7, replace = F)
+trainDf <- newspopData[index, ]
+testDf  <- newspopData[-index, ]
+
+```
+
+
+## Variable Selection  
+ 
+```{r}
+modelLm <- lm(log(shares)~ . , 
+              data = trainDf)
+
 pVal <- data.frame(summary(modelLm)$coefficients[,4])
 pVal$row_names <- row.names(pVal)
 pVal <- pVal %>% filter(pVal[,1] < 0.05)
@@ -265,16 +306,38 @@ cols
 
 ```
 
-## Train Test Split  
+## Linear Regression Model  
 ```{r}
-set.seed(42)
-index <- sample(1:dim(newspopData)[1], dim(newspopData)[1]*0.7, replace = F)
-trainDf <- newspopData[index, ]
-testDf  <- newspopData[-index, ]
+trControl <- trainControl(method = 'cv', number = 10)
+# model training
+modelLm <- train(log(shares) ~ .,
+              data = trainDf %>% dplyr::select(cols, shares),
+              method = "lm",
+              preProcess = c('center'),
+              trControl = trainControl() )
+
+#summary(modelLm)
+title = toupper(str_replace_all(params$data_channel, "_", " "))
+plot(varImp(modelLm), 
+     main = paste("Variable importance Plot for ", "\n", title))
+
+# prediction
+lmPredict <- predict(modelLm, newdata = testDf)
+error <- postResample(lmPredict, obs = log(testDf$shares))
+error
 
 ```
+## Linear Model Visulaization  
+```{r}
+ggplot(data = testDf, aes(x = lmPredict, y = log(shares))) +
+  geom_point(alpha = 0.2, color = "blue") +
+  geom_smooth(aes(x = lmPredict,
+                  y = log(shares)), color="blue") +
+  geom_line(aes(x = log(shares),
+                y = log(shares)), color = "black", 
+            linetype = 2, size = 1)
 
-
+```
 ## Forward Stepwise Regression
 ```{r, warning=FALSE, message=FALSE}
 
@@ -333,8 +396,13 @@ Creating new PCs, and plotting the cumulative variance graph:
 
 ```{r, message=FALSE, warning=FALSE}
 
-PCs <- prcomp(trainData %>% select(-shares, -day, -title_Sentiment_Class), center=TRUE, scale=TRUE)
+PCs <- prcomp(trainData %>% 
+                select(-shares, -day, 
+                       -title_Sentiment_Class, 
+                       -content_Sentiment_Class), 
+                        center=TRUE, scale=TRUE)
 
+# cumulative variance
 var = cumsum(PCs$sdev**2/sum(PCs$sdev**2))
 
 show(plot(var, xlab = "Principal Component",
@@ -358,8 +426,6 @@ treeTrainData <- predict(PCs, newdata = trainData %>% select(-shares)) %>%
 treeTrainData$shares <- trainData$shares
 treeTrainData
 ```
-
-
 
 ### Random Forest:
 
@@ -414,6 +480,7 @@ boostedTRes
 ```
 
 
+## Model Comparision  
 ```{r, message=FALSE, warning=FALSE}
 
 model_types = c("Linear", "Ensemble")
