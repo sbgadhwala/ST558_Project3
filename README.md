@@ -60,3 +60,5 @@ head(newpopData,5)
     ## #   num_imgs <dbl>, ...
 
 # Exploratory Data Analysis
+
+[Lifest article s=is her](data_channel_is_lifestyle.html)
