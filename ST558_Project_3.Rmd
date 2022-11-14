@@ -1,5 +1,5 @@
 ---
-title: "Project 3"
+title: "Article Shares Prediction"
 author: "Shyam Gadhwala & Kamlesh Pandey"
 output: github_document
 params:
@@ -133,13 +133,16 @@ Plotting the number of shares based on the number of images and videos that an a
 
 ggplot(newspopData, aes(x=day, y =   shares/1000000)) + 
   geom_bar(aes(fill = as_factor(num_imgs)), stat="identity", position="dodge") + 
+  scale_fill_discrete(name = 'Number of Images \n in Article') +
+  
   #geom_smooth(aes(col = day), method = 'lm', se = F) +
   #ylim(0, 0.12) +
   labs(subtitle = 'Number of Images in article v/s number of shares',
        x = 'Number of Images',
        y = 'Number of shares (in millions)',
        title = toupper(str_replace_all(params$data_channel, "_", " ")),
-       caption = "Source : News Popularity Dataset")
+       caption = "Source : News Popularity Dataset") + 
+       theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))
 
 ```
 
@@ -151,7 +154,9 @@ ggplot(newspopData, aes(x =  num_keywords, y =  shares/1000000)) +
        x = 'Number of Keywords',
        y = 'Shares (in millions)',
        title = toupper(str_replace_all(params$data_channel, "_", " ")),
-       caption = "Source : News Popularity Dataset")
+       caption = "Source : News Popularity Dataset",
+       fill = 'Days') + 
+       theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))
 
 ```
 
@@ -176,8 +181,10 @@ ggplot(newspopData, aes(x=title_Sentiment_Class, y=shares/1000000)) +
        x = 'Title Sentiment Category',
        y = 'Shares (in millions)',
        title = toupper(str_replace_all(params$data_channel, "_", " ")),
-       caption = "Source : News Popularity Dataset") +
-      geom_text(x = 3, y = 0.6, size = 3, 
+       caption = "Source : News Popularity Dataset",
+       fill = 'Days') +
+      theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1)) + 
+       geom_text(x = 3, y = 0.6, size = 3, 
                 label = paste("Title Sentiment Score range", "Extremely Positive = 0.5 <--> 1", 
                               'Positive = 0 <--> 0.5 ', 
                               'Negative = -0.5 <--> 0', 
@@ -197,7 +204,8 @@ ggplot(newspopData, aes(x= title_sentiment_polarity)) +
        x = 'Title Sentiment Polarity',
        y = 'Density',
        title = toupper(str_replace_all(params$data_channel, "_", " ")),
-       caption = "Source : News Popularity Dataset")
+       caption = "Source : News Popularity Dataset") + 
+       theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))
 
 ```
 
