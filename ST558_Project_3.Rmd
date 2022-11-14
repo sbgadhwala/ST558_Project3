@@ -15,6 +15,7 @@ library(tidyr)
 library(DT)
 library(tidyverse)
 library(caret)
+library(glmnet)
 ```
 
 # Introdcution  
@@ -95,7 +96,7 @@ ggplot(newspopData, aes(x = day, y = shares/1000000)) +
        theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))
 
 ```  
-From this bar chart we can visualize the shares trend across the week. The users engagement with the type of data Chanel (tech, entertainment, politics) will be different across the week. Users may be more inclined toward sharing lifestyle and entertainment news during weekend and prefer less to share technology/science related news during same time.
+From this bar chart we can visualize the shares trend across the week. The users engagement with the type of data Chanel (tech, entertainment, politics) will be different across the week. Users may be more inclined toward sharing lifestyle and entertainment news during weekend and prefer less to share technology/science related news during same time.  
 
 ```{r, message=FALSE, warning=FALSE}
 ggplot(newspopData, aes(x = global_rate_positive_words, y = global_sentiment_polarity)) +
@@ -125,12 +126,11 @@ ggplot(newspopData, aes(x = global_rate_negative_words, y = global_sentiment_pol
        caption = "Source : News Popularity Dataset",
        color = 'Days',
        size = 'Shares per Million') + 
-       theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))
+       theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))  
 ```  
 
 This plot estimates the general sentiments of users based on positive and negative words in the content. As expected, an article with more positive words has a positive sentiment index and more shares.
 
-                                                                        ### Shyam #####
 Plotting the number of shares based on the number of images and videos that an article has, based on what day of the week it is:
 
 ```{r, warning=FALSE, fig.width=20, message=FALSE}
@@ -170,7 +170,7 @@ This graph represents the shares trend of any article based on the number of key
 
 Now, the title sentiment polarity is one of the first things that users read while making a decision about reading an article let alone sharing it. Hence it is important to see how is the title sentiment polarity, is it negative or positive. Here, we are dividing the polarities into 4 sections; Highly positive (Sentiment Polarity between 0.5 and 1), positive (Sentiment Polarity between 0 and 0.5), negative ((Sentiment Polarity between -0.5 and 0)) and highly negative (Sentiment Polarity between -1 and -0.5).
 
-Creating the new variable to classify the sentiments into above category:
+Creating the new variable to classify the sentiments into above category:  
 ```{r, message=FALSE, warning=FALSE}
 
 pols = c("Extremely Positive", "Positive", "Negative", "Extremely Negative")
@@ -311,7 +311,8 @@ cols
 trControl <- trainControl(method = 'cv', number = 10)
 # model training
 modelLm <- train(log(shares) ~ .,
-              data = trainDf %>% dplyr::select(cols, shares),
+              data = trainDf %>% 
+              dplyr::select(all_of(cols), shares),
               method = "lm",
               preProcess = c('center'),
               trControl = trainControl() )
@@ -335,7 +336,10 @@ ggplot(data = testDf, aes(x = lmPredict, y = log(shares))) +
                   y = log(shares)), color="blue") +
   geom_line(aes(x = log(shares),
                 y = log(shares)), color = "black", 
-            linetype = 2, size = 1)
+            linetype = 2, size = 1)+
+  labs(x = 'Predicted Shares',
+       y = 'Actul log(Shares)',
+       title = paste("For", title))
 
 ```  
 
@@ -346,7 +350,10 @@ ggplot(data = testDf, aes(x = lmPredict,
   geom_point(alpha = 0.2, color = "blue") +
   geom_smooth(aes(x = lmPredict,
                   y = lmPredict - log(shares)),
-              color="black")
+              color="black") +
+        labs(x = 'Predicted Shares',
+             y = 'Residuals',
+             title = paste("For", title))
 
 ```  
 ## Forward Stepwise Regression
@@ -368,21 +375,37 @@ swForwardRes
 
 ## Lasso Regression  
 ```{r, message=FALSE, warning=FALSE}
+set.seed(43)
+fitControl <- trainControl(method = "cv",number = 5)
+fitLASSO <- train(log(shares) ~ . ,data=trainDf,
+                  method    = "glmnet", 
+                  trControl = fitControl,
+                  tuneGrid  =  expand.grid( alpha=1,
+                  lambda=10^seq(-5, 5, length =100)),
+                  preProcess = c("center", "scale")
+                )
 
-fitLASSO <- train(shares ~. , data = trainDf %>% select(cols, shares), 
-                  method = "lm",
-                  preProcess = c("center", "scale"), 
-                  trControl = trainControl(method = "cv", number = 3)
-                  )
-fitLASSO
+fitLASSO$bestTune
+
+predLASSO <- predict(fitLASSO, newx = log(testDf$shares))
+rmse <- (mean((testDf$shares - predLASSO)^2))^0.5
+rmse
+
+
+
+#
+# fitLASSO <- train(log(shares) ~. , data = trainDf %>% select(cols, shares), 
+#                   method = "lm",
+#                   preProcess = c("center", "scale"), 
+#                   trControl = trainControl(method = "cv", number = 3)
+#                   )
+# fitLASSO$bestTune
 
 #coeff <- predict(fitLASSO$finalModel, type = "coef", mode = "fraction",
 #s = fitLASSO$bestTune$fraction, testDf)
 #print(coeff)
+#lassoRes <- postResample(predLASSO, obs = testDf$shares)
 
-predLASSO <- predict(fitLASSO, newdata = testDf)
-lassoRes <- postResample(predLASSO, obs = testDf$shares)
-lassoRes
 ```
 
 ## Random Forest
@@ -446,6 +469,7 @@ We are using train() function from caret package to train the Random Forest mode
 
 Training the model:
 ```{r, message=FALSE, warning=FALSE}
+
 set.seed(400)
 trctrl <- trainControl(method = "repeatedcv", number = 3)
 randomForest <- train(shares ~., data = treeTrainData, 
@@ -461,9 +485,10 @@ randomForest
 Testing the model on the test data set to see the metrics of evaluation. The predict() function is used to create both PC based testing data, and to predict the number of shares using the Random Forest model. Further, the postResample() function is used to extract metrics such as RMSE, R-Squared, and MAE, represented below.
 
 ```{r, message=FALSE, warning=FALSE}
+
 treeTestData <- predict(PCs, newdata = testData %>% select(-shares)) %>% 
-  as_tibble() %>% 
-  select(PC1:paste0("PC", pt))
+                         as_tibble() %>% 
+                         select(PC1:paste0("PC", pt))
 
 
 rfPredict <- predict(randomForest, newdata = treeTestData)
@@ -487,7 +512,14 @@ boostedTree <- train(shares ~., data = trainData, method = "gbm",
 boostedTPredict <- predict(boostedTree, newdata = testData)
 boostedTRes <- postResample(boostedTPredict, obs = testData$shares)
 
-boostedTRes
+boostedTree
+
+# plot
+
+plot(boostedTree, xlab = "Max Tree Depth ", 
+     ylab = "Root Mean Square Error (Found through CV)", 
+     main = "All Predictors - Minimizing RMSE")
+
 ```
 
 
