@@ -25,34 +25,30 @@ Why this analysis is important ? From this predictive model, Mashable can predic
 # Data
 The dataset summarizes a heterogeneous set of features about articles published by in a period of two years.The dataset has 39644 data points and 61 feature columns. The project is aimed to subset the original dataset based on type of data channel (one of the six type) and then to predict the number of shares. For our project we are using *TECH* data channel for training and building a predictive modeling and eventually extending same model to other five data channel. User will have flexibility to choose the type of analysis they want based on their personal choice.  
 ```{r dataset, warning=FALSE, message=FALSE}
-newspopData <- read_csv('OnlineNewsPopularity.csv',
-                              locale = locale(encoding = 'latin1'))
-# select specified data channel and drop other data channel columns
-# this should be replaced by param$data_channel
+newspopData <- read_csv('OnlineNewsPopularity.csv', locale = locale(encoding = 'latin1'))
+
+# select specified data channel from params and drop other data channel columns
 newspopData <- filter(newspopData, newspopData[params$data_channel]== 1)%>%
-  select(everything(), -starts_with('data_channel_is_'), -url)
+  select( -starts_with('data_channel_is_'), -url)
 
-
-newspopData %>%
-  select(everything(), -starts_with('data_channel_is_'))
 
 datatable(newspopData)
 ```  
 # Exploratory Data Analysis  
 Before starting EDA, target variable need to be normalize as it has high variance.  
 ```{r eda, warning=FALSE, message=FALSE}
-#data("newspopData", package = "ggplot2")
 newspopData$scaledShare <- scale(newspopData$shares, center = T, scale = T)
 
 #calculating correlation index
 corr.index <- round(cor(newspopData$scaledShare, newspopData$n_tokens_content),2)
+
 # scatterplot
 ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
   geom_point()+
-  labs(subtitle = 'Word Count v/s Number of Shares', # need to automate this
+  labs(subtitle = 'Word Count v/s Number of Shares',
       y = 'Number of Share (Scaled)',
       x = 'Number of Words in article', 
-      title = toupper(str_replace_all(params$data_channel, "_", " ")),  # replace this with the main title
+      title = toupper(str_replace_all(params$data_channel, "_", " ")),
       caption = 'Source: News Popularity Dataset') + 
       geom_text(x = 4000, y = 60, size = 4, 
                 label = paste0("Correlation coefficient = ", corr.index), color = 'red')
@@ -62,6 +58,7 @@ ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
 We can inspect trend of Number of shares (scaled) as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficient.  
 
 
+Now, creating a new variable here that help eliminates the dummy variable for each day of the week. This new variable will take the value of each day of the week that corresponds to the dummy variable's value:
 ```{r, warning=FALSE}
 newspopData <- newspopData %>% mutate(day = if_else(weekday_is_monday==   1, "Monday", 
                                             if_else(weekday_is_tuesday==  1, "Tuesday",
@@ -77,11 +74,19 @@ newspopData$day <- as_factor(newspopData$day)
 ```
 
 
-```{r}
+Some statistics based on  this new variable is as shown:
+
+```{r, message=FALSE, warning=FALSE}
+knitr::kable(newspopData %>% group_by(day) %>% summarize(Count_of_Articles = n()))
+```
+
+This table shows the shares of articles on each day of the week. For tech based articles, we can expect a rise in shares in mid week or Fridays or after any tech has been launched. For entertainment and lifestyle articles, post-weekend period would be the most active period of sharing. While world, social media and business would not have a definitive trend.
+
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(newspopData, aes(x = day, y = shares/1000000)) +
   geom_bar(stat = 'identity', width = 0.5, fill = 'tomato3')+
-  labs(subtitle = 'Number of Shares (Million) Vs Day of Week', # need to automate this too
+  labs(subtitle = 'Number of Shares (Million) Vs Day of Week',
        caption = 'Source : News Popularity Dataset',
        y = 'Total Share count in Million',
        x = 'Day of the Week',
@@ -92,10 +97,9 @@ ggplot(newspopData, aes(x = day, y = shares/1000000)) +
 ```  
 From this bar chart we can visualize the shares trend across the week. The users engagement with the type of data Chanel (tech, entertainment, politics) will be different across the week. Users may be more inclined toward sharing lifestyle and entertainment news during weekend and prefer less to share technology/science related news during same time.
 
-```{r}
-pp <- ggplot(newspopData, aes(x = global_rate_positive_words, y = global_sentiment_polarity)) 
-
-pp +  geom_point(aes(col = day, size = shares/1e6)) + 
+```{r, message=FALSE, warning=FALSE}
+ggplot(newspopData, aes(x = global_rate_positive_words, y = global_sentiment_polarity)) +
+  geom_point(aes(col = day, size = shares/1e6)) + 
       geom_smooth(aes(col = day), method = 'lm', se = F) + 
        labs(subtitle = 'Positive Rate VS Sentiment Polarity Plot',
        x = 'Global Positive Word Rate',
@@ -110,7 +114,7 @@ pp +  geom_point(aes(col = day, size = shares/1e6)) +
 ```
 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 ggplot(newspopData, aes(x = global_rate_negative_words, y = global_sentiment_polarity)) + 
       geom_point(aes (col = day, size = shares/1e6)) + 
       geom_smooth(aes(col = day), method = 'lm', se = F) + 
@@ -129,14 +133,11 @@ This plot estimates the general sentiments of users based on positive and negati
                                                                         ### Shyam #####
 Plotting the number of shares based on the number of images and videos that an article has, based on what day of the week it is:
 
-```{r, warning=FALSE, fig.width=20}
+```{r, warning=FALSE, fig.width=20, message=FALSE}
 
 ggplot(newspopData, aes(x=day, y =   shares/1000000)) + 
   geom_bar(aes(fill = as_factor(num_imgs)), stat="identity", position="dodge") + 
   scale_fill_discrete(name = 'Number of Images \n in Article') +
-  
-  #geom_smooth(aes(col = day), method = 'lm', se = F) +
-  #ylim(0, 0.12) +
   labs(subtitle = 'Number of Images in article v/s number of shares',
        x = 'Number of Images',
        y = 'Number of shares (in millions)',
@@ -146,7 +147,12 @@ ggplot(newspopData, aes(x=day, y =   shares/1000000)) +
 
 ```
 
-```{r, warning=FALSE}
+This plot shows the number of shares (in millions) based on number of images included in each articles for each day of the week. The general trend might see a increase in sharing of articles over Fridays and weekends when there is more leisure time. Moreover, tech based articles can also see a rise in share if any new technology is released in middle of the week. Entertainment and Lifestyles articles can see a rise in share if any events happened over the weekend which is the case most of the times. World and social media Articles should not have a trend, as events from all over the world keep on happening throughout the week and updates are posted on social media non stop. Business articles would be more trending during working days.
+
+in addition to that, not all articles would be oriented towards images. For example, tech and business based articles readers would not care about the number of images included, but only the content itself, while for entertainment, world, lifestyle articles, images are one of the major factors in capturing user's attention, and thus,  shares.
+
+
+```{r, message=FALSE, warning=FALSE}
 ggplot(newspopData, aes(x =  num_keywords, y =  shares/1000000)) + 
   geom_bar(aes(fill = day), stat="identity") + 
   scale_x_discrete(limits=c(2:10)) +
@@ -159,9 +165,15 @@ ggplot(newspopData, aes(x =  num_keywords, y =  shares/1000000)) +
        theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))
 
 ```
+  
+This graph represents the shares trend of any article based on the number of keywords. A general speculated trend would be: the higher the number of keywords, the higher it is descriptive about its content, and hence the number of shares would also be higher. However. this might not hold true for business based articles where short and crisp key words can also do the trick. Otherwise, the trend of shares should be positive with respect to number of keywords.
 
+  
+  
+Now, the title sentiment polarity is one of the first things that users read while making a decision about reading an article let alone sharing it. Hence it is important to see how is the title sentiment polarity, is it negative or positive. Here, we are dividing the polarities into 4 sections; Highly positive (Sentiment Polarity between 0.5 and 1), positive (Sentiment Polarity between 0 and 0.5), negative ((Sentiment Polarity between -0.5 and 0)) and highly negative (Sentiment Polarity between -1 and -0.5).
 
-```{r}
+Creating the new variable to classify the sentiments into above category:
+```{r, message=FALSE, warning=FALSE}
 
 pols = c("Extremely Positive", "Positive", "Negative", "Extremely Negative")
 
@@ -173,6 +185,24 @@ newspopData <- newspopData %>% mutate(title_Sentiment_Class =
 
 newspopData$title_Sentiment_Class <- as_factor(newspopData$title_Sentiment_Class)
 ```
+
+Statistics about the articles that are in each of these categories:
+
+```{r, message=FALSE, warning=FALSE}
+
+knitr::kable(newspopData %>% group_by(title_Sentiment_Class) %>% summarize(Count_of_articles = n()))
+
+```
+The table above represents the number of articles classified into each title sentiment category.
+
+
+```{r, message=FALSE, warning=FALSE}
+
+knitr::kable(newspopData %>% group_by(title_Sentiment_Class, day) %>% summarize(Count_of_articles = n()))
+
+```
+
+This table further shows the shares of different title sentimental types of articles for each day of the week.
 
 ```{r}
 ggplot(newspopData, aes(x=title_Sentiment_Class, y=shares/1000000)) +
@@ -193,6 +223,9 @@ ggplot(newspopData, aes(x=title_Sentiment_Class, y=shares/1000000)) +
 
 ```
 
+The above graph represents the shares of articles (in millions) based on title sentiment category for each day of the week. Some of the trends that can be thought of here is that entertainment and lifestyle articles can have a shares of both extremes ends of classifications, mostly in the starting of the week after any events that might have happened, or any other controversy that their target celebrity would be involved in. 
+
+For tech, a high number of positive ends shares can be expected, while social media, business, world can have a mix of all the types of sentimental categorical shares, depending on the latest news.
 
 ```{r, fig.width=20}
 
@@ -208,6 +241,8 @@ ggplot(newspopData, aes(x= title_sentiment_polarity)) +
        theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))
 
 ```
+
+The plot above shows the density of distribution of the shares of each type of title sentimental category for each day of the week, in other words, how much density is covered by each type of sentimental titled article for each day. Again, the trend would be the same for each type of the data, depending on various situations that drive these articles, and its publications.
 
 
 # Modelling  
@@ -258,7 +293,7 @@ swForwardRes
 
 
 ## Lasso Regression  
-```{r}
+```{r, message=FALSE, warning=FALSE}
 
 fitLASSO <- train(shares ~. , data = trainDf %>% select(cols, shares), 
                   method = "lm",
@@ -276,9 +311,16 @@ lassoRes <- postResample(predLASSO, obs = testDf$shares)
 lassoRes
 ```
 
-## Variable Selection :PCA
+## Random Forest
 
-```{r}
+Since the data set is high dimensional, it would be easier to select the "best" subsets of variables for random forest ensemble tree learning method. More details about Random Forest is given before the model is formulated.
+
+## Variable Selection: Principal Component Analysis
+
+Since the data set includes a large number of variables, it becomes important to select the best subsets of the data that defines the data set and variations in the data set for number of shares. To get these variables, here we are conducting Principal Component Analysis (PCA). PCA standardizes the variables, and represent new variables/PCs that are a function of the original variables from the data set. 
+
+Again, to keep the models separate, we are again splitting the data into train and test data set, and removing the categorical variables that were added previously in the data. After that the PCs are formulated.
+```{r, message=FALSE, warning=FALSE}
 set.seed(200)
 trainIndex <- createDataPartition(newspopData$shares, p = 0.7, list = FALSE)
 
@@ -287,11 +329,11 @@ testData <- newspopData[-trainIndex, ]
 
 ```
 
+Creating new PCs, and plotting the cumulative variance graph:
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 
 PCs <- prcomp(trainData %>% select(-shares, -day, -title_Sentiment_Class), center=TRUE, scale=TRUE)
-#pca
 
 var = cumsum(PCs$sdev**2/sum(PCs$sdev**2))
 
@@ -304,8 +346,10 @@ points(pt, var[pt], col="red", cex=2, pch=20)
 text(8, 0.8, col="red", paste0(round(100*var[pt],2), "% variance \nis explained by ", pt, " \nnumber of PC(s)"))
 ```
 
+From the above graph, we can see that at least 80% variance is explained by `r pt` PCs, and hence for the subsequent steps`r pt` PCs will be used.
 
-```{r}
+Now, we are creating the training data for Random Forest Ensemble model.
+```{r, message=FALSE, warning=FALSE}
 
 treeTrainData <- predict(PCs, newdata = trainData %>% select(-shares)) %>% 
   as_tibble() %>% 
@@ -317,8 +361,14 @@ treeTrainData
 
 
 
-## Random Forest
-```{r}
+### Random Forest:
+
+Random Forest model is a tree based ensemble learning method where the training data set is sampled into smaller data sets, and some variables from the data set are included in the smaller sampled data. A tree is fitted to that data. This method is repeated several times, and finally a model is finalized that will be an average of all these sampled tree models. Since Random Forest takes only a subset of variables in any given sampling, it creates really strong model to predict on with unknown variables since the sampled data is able to explain variance much better with fewer variables.
+
+We are using train() function from caret package to train the Random Forest model. Pre-processing is done by centering and scaling the data, and a 3 fold cross validation is also. (The value 3 is selected to have some computation ease). Lastly, the model is tried for a number of values for the tuning parameter "mtry".
+
+Training the model:
+```{r, message=FALSE, warning=FALSE}
 set.seed(400)
 trctrl <- trainControl(method = "repeatedcv", number = 3)
 randomForest <- train(shares ~., data = treeTrainData, 
@@ -328,24 +378,26 @@ randomForest <- train(shares ~., data = treeTrainData,
                       tuneGrid = expand.grid(mtry = 1:as.integer(pt/3)))
 
 randomForest
-
-
 ```
 
 
-```{r}
+Testing the model on the test data set to see the metrics of evaluation. The predict() function is used to create both PC based testing data, and to predict the number of shares using the Random Forest model. Further, the postResample() function is used to extract metrics such as RMSE, R-Squared, and MAE, represented below.
+
+```{r, message=FALSE, warning=FALSE}
 treeTestData <- predict(PCs, newdata = testData %>% select(-shares)) %>% 
   as_tibble() %>% 
   select(PC1:paste0("PC", pt))
 
+
 rfPredict <- predict(randomForest, newdata = treeTestData)
 randomFRes <- postResample(rfPredict, obs = testData$shares)
 randomFRes
-
 ```
 
+The Random Forest model has a RMSE value `r randomFRes[[1]]`, R-Squared Value `r randomFRes[[2]]`, and MAE value `r randomFRes[[3]]`.
+
 ## Boosted Tree  
-```{r}
+```{r, message=FALSE, warning=FALSE}
 boostedTree <- train(shares ~., data = trainData, method = "gbm",
                      trControl = trainControl(method = "repeatedcv", number = 3),
                      preProcess = c("center", "scale"),
@@ -354,11 +406,91 @@ boostedTree <- train(shares ~., data = trainData, method = "gbm",
                                             shrinkage = 0.1,
                                             n.minobsinnode = 10),
                      verbose = FALSE)
-#boostedTree
 
-# prediction
 boostedTPredict <- predict(boostedTree, newdata = testData)
 boostedTRes <- postResample(boostedTPredict, obs = testData$shares)
 
 boostedTRes
 ```
+
+
+```{r, message=FALSE, warning=FALSE}
+
+model_types = c("Linear", "Ensemble")
+
+modelComparisonDf = tibble(model = c("Stepwise Forward"), model_type = c(model_types[1]), RMSE = c(round(swForwardRes[[1]],2)), R_Squared = c(round(swForwardRes[[2]], 4)))
+
+#modelComparisonDf <- rbind(modelComparisonDf, c("Stepwise Forward", swForwardRes[[1]], swForwardRes[[2]]))
+modelComparisonDf <- rbind(modelComparisonDf, c("LASSO", model_types[1], round(lassoRes[[1]],2), round(lassoRes[[2]],4)))
+modelComparisonDf <- rbind(modelComparisonDf, c("Random Forest", model_types[2], round(randomFRes[[1]],2), round(randomFRes[[2]],4)))
+modelComparisonDf <- rbind(modelComparisonDf, c("Boosted Trees", model_types[2], round(boostedTRes[[1]],2), round(boostedTRes[[2]],4)))
+
+knitr::kable(modelComparisonDf)
+
+```
+
+
+
+```{r, message=FALSE, warning=FALSE}
+
+bestLinearModel = ""
+bestLinearRMSE = ""
+bestLinearR2 = ""
+
+bestEnsembleModel = ""
+bestEnsembleRMSE = ""
+bestEnsembleR2 = ""
+
+bestOverallModel = ""
+bestOverallRMSE = ""
+bestOverallR2 = ""
+
+lineardf <- modelComparisonDf %>% filter(model_type == "Linear")
+
+ensembleDf <- modelComparisonDf %>% filter(model_type == "Ensemble")
+
+if (length(unique(lineardf$R_Squared)) > 1){
+  bestLinearModel <- lineardf[which.min(lineardf$RMSE),][[1]]
+  bestLinearRMSE <- lineardf[which.min(lineardf$RMSE),][[3]]
+  bestLinearR2 <- lineardf[which.min(lineardf$RMSE),][[4]]
+} else{
+  bestLinearModel <- lineardf[which.max(lineardf$R_Squared),][[1]]
+  bestLinearRMSE <- lineardf[which.max(lineardf$R_Squared),][[3]]
+  bestLinearR2 <- lineardf[which.max(lineardf$R_Squared),][[4]]
+}
+
+
+if (length(unique(ensembleDf$R_Squared)) > 1){
+  bestEnsembleModel <- ensembleDf[which.min(ensembleDf$RMSE),][[1]]
+  bestEnsembleRMSE <- ensembleDf[which.min(ensembleDf$RMSE),][[3]]
+  bestEnsembleR2 <- ensembleDf[which.min(ensembleDf$RMSE),][[4]]
+} else{
+  bestEnsembleModel <- ensembleDf[which.max(ensembleDf$R_Squared),][[1]]
+  bestEnsembleRMSE <- ensembleDf[which.max(ensembleDf$R_Squared),][[3]]
+  bestEnsembleR2 <- ensembleDf[which.max(ensembleDf$R_Squared),][[4]]
+}
+
+
+if (length(unique(ensembleDf$R_Squared)) > 1){
+  bestOverallModel <- modelComparisonDf[which.min(modelComparisonDf$RMSE),][[1]]
+  bestOverallRMSE <- modelComparisonDf[which.min(modelComparisonDf$RMSE),][[3]]
+  bestOverallR2 <- modelComparisonDf[which.min(modelComparisonDf$RMSE),][[4]]
+} else{
+  bestOverallModel <- modelComparisonDf[which.max(modelComparisonDf$R_Squared),][[1]]
+  bestOverallRMSE <- modelComparisonDf[which.max(modelComparisonDf$R_Squared),][[3]]
+  bestOverallR2 <- modelComparisonDf[which.max(modelComparisonDf$R_Squared),][[4]]
+}
+
+```
+
+
+For the data set for `r toupper(str_split(params$data_channel, "_")[[1]][4])`, the best linear model is `r bestLinearModel` with RMSE value of `r bestLinearRMSE`, and R Squared value of `r bestLinearR2`.  
+The best ensemble method is `r bestEnsembleModel` with RMSE value of `r bestEnsembleRMSE`, and R Squared value of `r bestEnsembleR2`.  
+
+The best overall model is `r bestOverallModel`with RMSE value of `r bestOverallRMSE`, and R Squared value of `r bestOverallR2`.
+
+
+
+
+
+
