@@ -1,7 +1,6 @@
 # Prediting Article Shares : [News Popularity Dataset](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity) 
 
 
-
 This repository is final submission for ST-558 project by Shyam Gadhwala & Kamlesh Pandey. In this project we are predicting the number of shares for an article published in [Mashable](https://mashable.com/) website.  
 For this project, we have utlised R programming language and its several libraries for data analysis, visualization, and predictive modeling. R libraries used in the analysis is listed below  
 
@@ -13,6 +12,7 @@ library(tidyr)
 library(DT)  
 library(tidyverse)  
 library(caret)  
+library(glmnet)  
 ```
 All reports generated via automating R Markdown can be found here  
 
