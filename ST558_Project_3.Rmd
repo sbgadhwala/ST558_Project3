@@ -337,7 +337,18 @@ ggplot(data = testDf, aes(x = lmPredict, y = log(shares))) +
                 y = log(shares)), color = "black", 
             linetype = 2, size = 1)
 
-```
+```  
+
+```{r}
+# residual plot
+ggplot(data = testDf, aes(x = lmPredict,
+                      y = lmPredict - log(shares))) +
+  geom_point(alpha = 0.2, color = "blue") +
+  geom_smooth(aes(x = lmPredict,
+                  y = lmPredict - log(shares)),
+              color="black")
+
+```  
 ## Forward Stepwise Regression
 ```{r, warning=FALSE, message=FALSE}
 
