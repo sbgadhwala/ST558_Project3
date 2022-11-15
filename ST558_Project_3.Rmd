@@ -24,7 +24,7 @@ Why this analysis is important ? From this predictive model, Mashable can predic
 
 
 # Data
-The dataset summarizes a heterogeneous set of features about articles published by in a period of two years.The dataset has 39644 data points and 61 feature columns. The project is aimed to subset the original dataset based on type of data channel (one of the six type) and then to predict the number of shares. For our project we are using *TECH* data channel for training and building a predictive modeling and eventually extending same model to other five data channel. User will have flexibility to choose the type of analysis they want based on their personal choice.  
+The dataset summarizes a heterogeneous set of features about articles published by in a period of two years.The dataset has 39644 data points and 61 feature columns. The project is aimed to subset the original dataset based on type of data channel (one of the six type) and then to predict the number of shares. For our project we are using **`r str_split(params$data_channel, "_")[[4]]`** data channel for training and building a predictive modeling and eventually extending same model to other five data channel. User will have flexibility to choose the type of analysis they want based on their personal choice.  
 ```{r dataset, warning=FALSE, message=FALSE}
 newspopData <- read_csv('OnlineNewsPopularity.csv', locale = locale(encoding = 'latin1'))
 
