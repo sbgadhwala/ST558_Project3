@@ -139,7 +139,7 @@ This plot estimates the general sentiments of users based on positive and negati
 
 Plotting the number of shares based on the number of images and videos that an article has, based on what day of the week it is:
 
-```{r, warning=FALSE, fig.width=20, message=FALSE}
+```{r, warning=FALSE, fig.width=20, fig.height=8, message=FALSE}
 
 ggplot(newspopData, aes(x=day, y =   shares/1000000)) + 
   geom_bar(aes(fill = as_factor(num_imgs)), stat="identity", position="dodge") + 
@@ -250,7 +250,7 @@ The above graph represents the shares of articles (in millions) based on title s
 
 For tech, a high number of positive ends shares can be expected, while social media, business, world can have a mix of all the types of sentimental categorical shares, depending on the latest news.
 
-```{r, fig.width=20, fig.height=15}
+```{r, fig.width=20, fig.height=8}
 
 ggplot(newspopData, aes(x= title_sentiment_polarity)) +
   geom_density(aes(fill=title_Sentiment_Class), alpha = 0.7) +
