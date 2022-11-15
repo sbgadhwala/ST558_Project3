@@ -57,7 +57,7 @@ ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
       x = 'Number of Words in article', 
       title = toupper(str_replace_all(params$data_channel, "_", " ")),
       caption = 'Source: News Popularity Dataset') + 
-      geom_text(x = 4000, y = 60, size = 4, 
+      geom_text(x = max(newspopData$n_tokens_content)-3000, y = max(newspopData$scaledShare)-40, size = 4, 
                 label = paste0("Correlation coefficient = ", corr.index), color = 'red')
 
 ```  
