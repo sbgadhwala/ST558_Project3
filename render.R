@@ -5,7 +5,8 @@ dataType = c('data_channel_is_lifestyle',
              'data_channel_is_entertainment',
              'data_channel_is_bus',
              'data_channel_is_socmed',
-             'data_channel_is_world')
+             'data_channel_is_world',
+             'data_channel_is_tech')
 
 outputFile <- paste0(dataType, ".html")
 
