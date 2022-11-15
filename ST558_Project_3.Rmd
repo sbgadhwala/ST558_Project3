@@ -23,7 +23,7 @@ library(glmnet)
 nameOFProj = params$data_channel
 nameOFProj <- str_split(nameOFProj, "_")[[1]][4]
 nameOFProj <- toupper(nameOFProj)
-```
+```  
 # Introdcution  
 We are living in a digital world where people are more concerned about the digital footprint and people often consider the like and shares they get on a post that they publish online as an important metric. We have several social media websites and print media to share our articles. Online print media platform like [Mashable](www.mashable.com) publishes thousand of online media everyday and it is important for them get a more user engagement from the the article they post online. In this dataset we are trying to predict the shares based on several predictor, such as text sentiment polarity, rate of negative words, rate of positive words, and many more.
 Why this analysis is important ? From this predictive model, Mashable can predict the number of shares they can receive based on the type of article they are publishing online.  
@@ -269,6 +269,7 @@ The plot above shows the density of distribution of the shares of each type of t
 
 
 # Modelling  
+From the shares distribution, we can estimate that the distribution is left-skewed. After using log transformation, shares distribution can be estimated as normal
 
 ```{r}
 par(mfrow = c(1,2))
@@ -276,10 +277,8 @@ ggplot(newspopData) + geom_density(aes(x = shares))+
   labs(title = "Shares Predictor Distribution in Dataset")
 ggplot(newspopData) + geom_density(aes(x = log(shares)))+
   labs(title = "Log(Share) distribution in the Dataset")
-```  
 
-## Train Test Split  
-```{r}
+# train test split
 set.seed(42)
 #removing mutated variables from the dataset
 lmData <- newspopData %>%
@@ -290,19 +289,25 @@ index <- sample(1:dim(lmData)[1], dim(newspopData)[1]*0.7, replace = F)
 trainDf <- lmData[index, ]
 testDf  <- lmData[-index, ]
 
-```
-
+```  
 
 ## Variable Selection  
- 
+For variable selection we used p-test values to consider significant coefficients from the linear model fit. For a confidence interval of 95%, the significant predictors are used to fit a linear and Lasso regression model.
+For the significant parameter selection, our NULL and Alternate hypothesis is explained below:
+  H~0: All coefficients have zero slope
+  H~a: At-least one predictor variable has a non-zero slope  
+  
 ```{r}
 modelLm <- lm(log(shares)~ . , 
               data = trainDf)
 
+# getting p-values 
 pVal <- data.frame(summary(modelLm)$coefficients[,4])
 pVal$row_names <- row.names(pVal)
+# checking if slope of intercept is significant (i.e. <<< 0.05)
 pVal <- pVal %>% filter(pVal[,1] < 0.05)
 cols = c()
+# remove intercept term and store all significant intercepts in "cols" variable 
 if (pVal[,2][1] == "(Intercept)"){
   cols = pVal[,2][-1]
 }else{
@@ -312,7 +317,8 @@ cols
 
 ```
 
-## Linear Regression Model  
+## Multiple Linear Regression Model  
+Linear regression is a regression model that uses a straight line to describe a relationship between two or more predictor and a response variable. In news popularity dataset we have 54 predictor variable and a response variable (shares).
 ```{r}
 trControl <- trainControl(method = 'cv', number = 10)
 # model training
@@ -325,16 +331,18 @@ modelLm <- train(log(shares) ~ .,
 
 #summary(modelLm)
 title = toupper(str_replace_all(params$data_channel, "_", " "))
+
+# variable importance for linear model
 plot(varImp(modelLm), 
      main = paste("Variable importance Plot for ", "\n", title))
 
-# prediction
+# prediction using linear regression model
 lmPredict <- predict(modelLm, newdata = testDf)
 error <- postResample(lmPredict, obs = log(testDf$shares))
 error
+```  
 
-```
-## Linear Model Visulaization  
+## Linear Model Visulaization (Residual Plot)
 ```{r}
 ggplot(data = testDf, aes(x = lmPredict, y = log(shares))) +
   geom_point(alpha = 0.2, color = "blue") +
@@ -361,7 +369,9 @@ ggplot(data = testDf, aes(x = lmPredict,
              y = 'Residuals',
              title = paste("For", title))
 
-```  
+```    
+In ideal scenario, residuals must be centered around the zero line to fulfill the linear regression model assumptions. From the plot we can fairly assume that the residuals are centerd aroud the zero mean.  
+
 ## Forward Stepwise Regression
 ```{r, warning=FALSE, message=FALSE}
 
