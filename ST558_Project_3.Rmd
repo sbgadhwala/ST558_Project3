@@ -244,7 +244,7 @@ The above graph represents the shares of articles (in millions) based on title s
 
 For tech, a high number of positive ends shares can be expected, while social media, business, world can have a mix of all the types of sentimental categorical shares, depending on the latest news.
 
-```{r, fig.width=20}
+```{r, fig.width=20, fig.height=15}
 
 ggplot(newspopData, aes(x= title_sentiment_polarity)) +
   geom_density(aes(fill=title_Sentiment_Class), alpha = 0.7) +
@@ -276,13 +276,13 @@ ggplot(newspopData) + geom_density(aes(x = log(shares)))+
 ```{r}
 set.seed(42)
 #removing mutated variables from the dataset
-newspopData <- newspopData %>%
+lmData <- newspopData %>%
   select(-day, -scaledShare, 
          -title_Sentiment_Class,
          -content_Sentiment_Class)
-index <- sample(1:dim(newspopData)[1], dim(newspopData)[1]*0.7, replace = F)
-trainDf <- newspopData[index, ]
-testDf  <- newspopData[-index, ]
+index <- sample(1:dim(lmData)[1], dim(newspopData)[1]*0.7, replace = F)
+trainDf <- lmData[index, ]
+testDf  <- lmData[-index, ]
 
 ```
 
