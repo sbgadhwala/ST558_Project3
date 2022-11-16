@@ -510,7 +510,7 @@ plot(boostedTree, xlab = "Max Tree Depth ",
  boostedTree$bestTune
 ```  
 
-From the plot we can visualize that using tunegrid we have a combinations of parameters for boosted tree that can be used to find minimum RMSE value. From the plot we can see that the depth = 1 and number of tree at 100, model finds lowest RMSE and same can be corroborated from finding best model **(boostedTree$bestTune)**
+From the plot we can visualize that using tunegrid we have a combinations of parameters that can be used to find minimum RMSE value using Boosted tree algorithm. From the plot we can see that at depth = 1 and number of tree at 100, model finds lowest RMSE and same can be corroborated from finding best model **(boostedTree$bestTune)**  
 
 
 ## Model Comparision  
