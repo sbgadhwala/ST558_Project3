@@ -478,6 +478,8 @@ randomFRes <- postResample(rfPredict, obs = treeTestData$logShares)
 The Random Forest model has a RMSE value `r randomFRes[[1]]`, R-Squared Value `r randomFRes[[2]]`, and MAE value `r randomFRes[[3]]`.
 
 ## Boosted Tree  
+Boosting is another tree based approach for improving the predictions resulting from a decision tree. Like other tree models, boosting can be applied for classification and regression. Boosting works in **sequentially**: each tree is grown using information from previously grown trees. In this project, we are using **gbm** package within caret train function. 
+An additional input tunegrid also provided to train function, which will find best hyper parameter combinations of number of trees, and depth. 
 ```{r, message=FALSE, warning=FALSE}
 boostedTree <- train(logShares ~., data = trainData %>% select(-shares), method = "gbm",
                      trControl = trainControl(method = "repeatedcv", number = 3),
@@ -491,10 +493,8 @@ boostedTree <- train(logShares ~., data = trainData %>% select(-shares), method 
 boostedTPredict <- predict(boostedTree, newdata = testData %>% select(-shares))
 boostedTRes <- postResample(boostedTPredict, obs = (testData %>% select(-shares))$logShares)
 
-boostedTree
 
 # plot
-
 plot(boostedTree, xlab = "Max Tree Depth ", 
      ylab = "Root Mean Square Error (Found through CV)", 
      main = "All Predictors - Minimizing RMSE")
@@ -507,7 +507,10 @@ plot(boostedTree, xlab = "Max Tree Depth ",
  adjR2Boosted <-  1-(((1-boostedTRes[2]^2)*(n-1))/(n-p-1))
  
  boostedTRes
-```
+ boostedTree$bestTune
+```  
+
+From the plot we can visualize that using tunegrid we have a combinations of parameters for boosted tree that can be used to find minimum RMSE value. From the plot we can see that the depth = 1 and number of tree at 100, model finds lowest RMSE and same can be corroborated from finding best model **(boostedTree$bestTune)**
 
 
 ## Model Comparision  
