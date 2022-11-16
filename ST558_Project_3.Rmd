@@ -3,7 +3,7 @@ title: "Article Shares Prediction"
 author: "Shyam Gadhwala & Kamlesh Pandey"
 output: github_document
 params:
-  data_channel: "data_channel_is_tech"
+  data_channel: "data_channel_is_lifestyle"
 ---
 
 # Library  
@@ -12,7 +12,6 @@ library(dplyr)
 library(readr)
 library(ggplot2)
 library(tidyr)
-library(DT)
 library(tidyverse)
 library(caret)
 library(glmnet)
@@ -25,21 +24,21 @@ nameOFProj <- str_split(nameOFProj, "_")[[1]][4]
 nameOFProj <- toupper(nameOFProj)
 ```  
 # Introdcution  
-We are living in a digital world where people are more concerned about the digital footprint and people often consider the like and shares they get on a post that they publish online as an important metric. We have several social media websites and print media to share our articles. Online print media platform like [Mashable](www.mashable.com) publishes thousand of online media everyday and it is important for them get a more user engagement from the the article they post online. In this dataset we are trying to predict the shares based on several predictor, such as text sentiment polarity, rate of negative words, rate of positive words, and many more.
+We are living in a digital world where people are more concerned about the digital footprint and people often consider the like and shares they get on a post that they publish online as an important metric. We have several social media websites and print media to share our articles. Online print media platform like [Mashable](www.mashable.com) publishes thousand of online media everyday and it is important for them get a more user engagement from the the article they post online. In this data set we are trying to predict the shares based on several predictor, such as text sentiment polarity, rate of negative words, rate of positive words, and many more.
 Why this analysis is important ? From this predictive model, Mashable can predict the number of shares they can receive based on the type of article they are publishing online.  
 
 
 # Data
-The dataset summarizes a heterogeneous set of features about articles published by in a period of two years.The dataset has 39644 data points and 61 feature columns. The project is aimed to subset the original dataset based on type of data channel (one of the six type) and then to predict the number of shares. For our project we are using **`r nameOFProj`** data channel for training and building a predictive modeling and eventually extending same model to other five data channel. User will have flexibility to choose the type of analysis they want based on their personal choice.  
+The data set summarizes a heterogeneous set of features about articles published by in a period of two years.The data set has 39644 data points and 61 feature columns. The project is aimed to subset the original data set based on type of data channel (one of the six type) and then to predict the number of shares. For our project we are using **`r nameOFProj`** data channel for training and building a predictive modeling and eventually extending same model to other five data channel. User will have flexibility to choose the type of analysis they want based on their personal choice.  
 ```{r dataset, warning=FALSE, message=FALSE}
-newspopData <- read_csv('OnlineNewsPopularity.csv', locale = locale(encoding = 'latin1'))
+newspopData <- read_csv('OnlineNewsPopularity.csv')
 
 # select specified data channel from params and drop other data channel columns
-newspopData <- filter(newspopData, newspopData[params$data_channel]== 1)%>%
+newspopData <- newspopData %>% filter(newspopData[params$data_channel] == 1) %>%
   select( -starts_with('data_channel_is_'), -url)
 
 
-datatable(newspopData)
+newspopData
 ```  
 # Exploratory Data Analysis  
 Before starting EDA, target variable need to be normalize as it has high variance.  
@@ -67,6 +66,7 @@ We can inspect trend of Number of shares (scaled) as a function of Number of wor
 
 Now, creating a new variable here that help eliminates the dummy variable for each day of the week. This new variable will take the value of each day of the week that corresponds to the dummy variable's value:
 ```{r, warning=FALSE}
+newspopData <- newspopData %>% select(-scaledShare)
 newspopData <- newspopData %>% mutate(day = if_else(weekday_is_monday==   1, "Monday", 
                                             if_else(weekday_is_tuesday==  1, "Tuesday",
                                             if_else(weekday_is_wednesday==1, "Wednesday",
@@ -208,7 +208,7 @@ knitr::kable(newspopData %>% group_by(title_Sentiment_Class, day) %>% summarize(
 
 This table further shows the shares of different title sentimental types of articles for each day of the week.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 
 newspopData <- newspopData %>% mutate(content_Sentiment_Class = 
                                         if_else( global_sentiment_polarity > 0.5, pols[1],
@@ -227,7 +227,7 @@ knitr::kable(newspopData %>%
 ```  
 We further want to extend our analysis based on the average number of tokens on an article published during the weekdays and weekend.
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 ggplot(newspopData, aes(x=title_Sentiment_Class, y=shares/1000000)) +
   geom_bar(aes(fill = day), stat="identity", position="dodge") +
   labs(subtitle = 'Shares based on title sentiment and day of the week',
@@ -281,13 +281,13 @@ ggplot(newspopData) + geom_density(aes(x = log(shares)))+
 # train test split
 set.seed(42)
 #removing mutated variables from the dataset
-lmData <- newspopData %>%
-  select(-day, -scaledShare, 
+lmData <- newspopData %>% select(-day, 
          -title_Sentiment_Class,
          -content_Sentiment_Class)
+lmData$logShares <- log(lmData$shares)
 index <- sample(1:dim(lmData)[1], dim(newspopData)[1]*0.7, replace = F)
-trainDf <- lmData[index, ]
-testDf  <- lmData[-index, ]
+trainDf <- lmData[index, ] %>% select(-shares)
+testDf  <- lmData[-index, ] %>% select(-shares)
 
 ```  
 
@@ -298,8 +298,7 @@ For the significant parameter selection, our NULL and Alternate hypothesis is ex
   H~a: At-least one predictor variable has a non-zero slope  
   
 ```{r}
-modelLm <- lm(log(shares)~ . , 
-              data = trainDf)
+modelLm <- lm(logShares~. ,data = trainDf)
 
 # getting p-values 
 pVal <- data.frame(summary(modelLm)$coefficients[,4])
@@ -320,14 +319,14 @@ cols
 ## Multiple Linear Regression Model  
 Linear regression is a regression model that uses a straight line to describe a relationship between two or more predictor and a response variable. In news popularity dataset we have 54 predictor variable and a response variable (shares).
 ```{r}
-trControl <- trainControl(method = 'cv', number = 10)
+trControl <- trainControl(method = 'repeatedcv', number = 10)
 # model training
-modelLm <- train(log(shares) ~ .,
+modelLm <- train(logShares ~ .,
               data = trainDf %>% 
-              dplyr::select(all_of(cols), shares),
+              select(all_of(cols), logShares),
               method = "lm",
-              preProcess = c('center'),
-              trControl = trainControl() )
+              preProcess = c('center', 'scale'),
+              trControl = trControl)
 
 #summary(modelLm)
 title = toupper(str_replace_all(params$data_channel, "_", " "))
@@ -338,12 +337,12 @@ plot(varImp(modelLm),
 
 # prediction using linear regression model
 lmPredict <- predict(modelLm, newdata = testDf)
-error <- postResample(lmPredict, obs = log(testDf$shares))
-error
+lmRes <- postResample(lmPredict, obs = testDf$logShares)
+lmRes
 ```  
 
 ## Linear Model Visulaization (Residual Plot)
-```{r}
+```{r, include=FALSE, eval=FALSE}
 ggplot(data = testDf, aes(x = lmPredict, y = log(shares))) +
   geom_point(alpha = 0.2, color = "blue") +
   geom_smooth(aes(x = lmPredict,
@@ -357,7 +356,7 @@ ggplot(data = testDf, aes(x = lmPredict, y = log(shares))) +
 
 ```  
 
-```{r}
+```{r, include=FALSE, eval=FALSE}
 # residual plot
 ggplot(data = testDf, aes(x = lmPredict,
                       y = lmPredict - log(shares))) +
@@ -370,58 +369,29 @@ ggplot(data = testDf, aes(x = lmPredict,
              title = paste("For", title))
 
 ```    
-In ideal scenario, residuals must be centered around the zero line to fulfill the linear regression model assumptions. From the plot we can fairly assume that the residuals are centerd aroud the zero mean.  
-
-## Forward Stepwise Regression
-```{r, warning=FALSE, message=FALSE}
-
-swFroward <- train(shares ~ ., data = trainDf,
-                    preProcess = c("center", "scale"),
-                    method = "leapForward")
-
-
-swFrowardPrediction <- predict(swFroward, newdata = testDf)
-
-
-swForwardRes <- postResample(swFrowardPrediction, obs = testDf$shares)
-swForwardRes
-
-```
+In ideal scenario, residuals must be centered around the zero line to fulfill the linear regression model assumptions. From the plot we can fairly assume that the residuals are centered around the zero mean.  
 
 
 ## Lasso Regression  
 ```{r, message=FALSE, warning=FALSE}
 set.seed(43)
-fitControl <- trainControl(method = "cv",number = 5)
-fitLASSO <- train(log(shares) ~ . ,data=trainDf,
-                  method    = "glmnet", 
+fitControl <- trainControl(method = "repeatedcv",number = 5)
+fitLASSO <- train(logShares ~ . ,
+                  data=trainDf,
+                  method = "lasso", 
                   trControl = fitControl,
-                  tuneGrid  =  expand.grid( alpha=1,
-                  lambda=10^seq(-5, 5, length =100)),
                   preProcess = c("center", "scale")
                 )
 
-fitLASSO$bestTune
 
-predLASSO <- predict(fitLASSO, newx = log(testDf$shares))
-rmse <- (mean((testDf$shares - predLASSO)^2))^0.5
-rmse
+predLASSO <- predict(fitLASSO, newdata = testDf)
+
+coeff <- predict(fitLASSO$finalModel, type = "coef", mode = "fraction",
+                 s = fitLASSO$bestTune$fraction, testDf)
 
 
-
-#
-# fitLASSO <- train(log(shares) ~. , data = trainDf %>% select(cols, shares), 
-#                   method = "lm",
-#                   preProcess = c("center", "scale"), 
-#                   trControl = trainControl(method = "cv", number = 3)
-#                   )
-# fitLASSO$bestTune
-
-#coeff <- predict(fitLASSO$finalModel, type = "coef", mode = "fraction",
-#s = fitLASSO$bestTune$fraction, testDf)
-#print(coeff)
-#lassoRes <- postResample(predLASSO, obs = testDf$shares)
-
+lassoRes <- postResample(predLASSO, obs = testDf$logShares)
+lassoRes
 ```
 
 ## Random Forest
@@ -435,6 +405,7 @@ Since the data set includes a large number of variables, it becomes important to
 Again, to keep the models separate, we are again splitting the data into train and test data set, and removing the categorical variables that were added previously in the data. After that the PCs are formulated.
 ```{r, message=FALSE, warning=FALSE}
 set.seed(200)
+newspopData$logShares <- log(newspopData$shares)
 trainIndex <- createDataPartition(newspopData$shares, p = 0.7, list = FALSE)
 
 trainData <- newspopData[trainIndex, ]
@@ -447,7 +418,7 @@ Creating new PCs, and plotting the cumulative variance graph:
 ```{r, message=FALSE, warning=FALSE}
 
 PCs <- prcomp(trainData %>% 
-                select(-shares, -day, 
+                select(-shares, -logShares, -day, 
                        -title_Sentiment_Class, 
                        -content_Sentiment_Class), 
                         center=TRUE, scale=TRUE)
@@ -455,8 +426,8 @@ PCs <- prcomp(trainData %>%
 # cumulative variance
 var = cumsum(PCs$sdev**2/sum(PCs$sdev**2))
 
-show(plot(var, xlab = "Principal Component",
-ylab = "Cum. Prop of Variance Explained", ylim = c(0, 1), type = 'b'))
+show(plot(var, xlab = "Principal Component", 
+          ylab = "Cum. Prop of Variance Explained", ylim = c(0, 1), type = 'b'))
 
 pt <- min(which(var > 0.80))
 
@@ -469,11 +440,11 @@ From the above graph, we can see that at least 80% variance is explained by `r p
 Now, we are creating the training data for Random Forest Ensemble model.
 ```{r, message=FALSE, warning=FALSE}
 
-treeTrainData <- predict(PCs, newdata = trainData %>% select(-shares)) %>% 
+treeTrainData <- predict(PCs, newdata = trainData %>% select(-shares, -logShares)) %>% 
   as_tibble() %>% 
   select(PC1:paste0("PC", pt))
 
-treeTrainData$shares <- trainData$shares
+treeTrainData$logShares <- trainData$logShares
 treeTrainData
 ```
 
@@ -488,7 +459,7 @@ Training the model:
 
 set.seed(400)
 trctrl <- trainControl(method = "repeatedcv", number = 3)
-randomForest <- train(shares ~., data = treeTrainData, 
+randomForest <- train(logShares ~., data = treeTrainData, 
                       method = "rf",
                       trControl=trctrl,
                       preProcess = c("center", "scale"),
@@ -502,13 +473,14 @@ Testing the model on the test data set to see the metrics of evaluation. The pre
 
 ```{r, message=FALSE, warning=FALSE}
 
-treeTestData <- predict(PCs, newdata = testData %>% select(-shares)) %>% 
+treeTestData <- predict(PCs, newdata = testData %>% select(-shares, -logShares)) %>% 
                          as_tibble() %>% 
                          select(PC1:paste0("PC", pt))
 
+treeTestData$logShares <- testData$logShares
 
 rfPredict <- predict(randomForest, newdata = treeTestData)
-randomFRes <- postResample(rfPredict, obs = testData$shares)
+randomFRes <- postResample(rfPredict, obs = treeTestData$logShares)
 randomFRes
 ```
 
@@ -516,7 +488,7 @@ The Random Forest model has a RMSE value `r randomFRes[[1]]`, R-Squared Value `r
 
 ## Boosted Tree  
 ```{r, message=FALSE, warning=FALSE}
-boostedTree <- train(shares ~., data = trainData, method = "gbm",
+boostedTree <- train(logShares ~., data = trainData %>% select(-shares), method = "gbm",
                      trControl = trainControl(method = "repeatedcv", number = 3),
                      preProcess = c("center", "scale"),
                      tuneGrid = expand.grid(n.trees = c(25, 50, 100, 150, 200),
@@ -525,8 +497,8 @@ boostedTree <- train(shares ~., data = trainData, method = "gbm",
                                             n.minobsinnode = 10),
                      verbose = FALSE)
 
-boostedTPredict <- predict(boostedTree, newdata = testData)
-boostedTRes <- postResample(boostedTPredict, obs = testData$shares)
+boostedTPredict <- predict(boostedTree, newdata = testData %>% select(-shares))
+boostedTRes <- postResample(boostedTPredict, obs = (testData %>% select(-shares))$logShares)
 
 boostedTree
 
@@ -536,6 +508,7 @@ plot(boostedTree, xlab = "Max Tree Depth ",
      ylab = "Root Mean Square Error (Found through CV)", 
      main = "All Predictors - Minimizing RMSE")
 
+boostedTRes
 ```
 
 
@@ -544,7 +517,7 @@ plot(boostedTree, xlab = "Max Tree Depth ",
 
 model_types = c("Linear", "Ensemble")
 
-modelComparisonDf = tibble(model = c("Stepwise Forward"), model_type = c(model_types[1]), RMSE = c(round(swForwardRes[[1]],2)), R_Squared = c(round(swForwardRes[[2]], 4)))
+modelComparisonDf = tibble(model = c("Linear Model"), model_type = c(model_types[1]), RMSE = c(round(lmRes[[1]],2)), R_Squared = c(round(lmRes[[2]], 4)))
 
 #modelComparisonDf <- rbind(modelComparisonDf, c("Stepwise Forward", swForwardRes[[1]], swForwardRes[[2]]))
 modelComparisonDf <- rbind(modelComparisonDf, c("LASSO", model_types[1], round(lassoRes[[1]],2), round(lassoRes[[2]],4)))
@@ -597,7 +570,7 @@ if (length(unique(ensembleDf$R_Squared)) > 1){
 }
 
 
-if (length(unique(ensembleDf$R_Squared)) > 1){
+if (length(unique(modelComparisonDf$R_Squared)) > 1){
   bestOverallModel <- modelComparisonDf[which.min(modelComparisonDf$RMSE),][[1]]
   bestOverallRMSE <- modelComparisonDf[which.min(modelComparisonDf$RMSE),][[3]]
   bestOverallR2 <- modelComparisonDf[which.min(modelComparisonDf$RMSE),][[4]]
@@ -613,7 +586,7 @@ if (length(unique(ensembleDf$R_Squared)) > 1){
 For the data set for `r toupper(str_split(params$data_channel, "_")[[1]][4])`, the best linear model is `r bestLinearModel` with RMSE value of `r bestLinearRMSE`, and R Squared value of `r bestLinearR2`.  
 The best ensemble method is `r bestEnsembleModel` with RMSE value of `r bestEnsembleRMSE`, and R Squared value of `r bestEnsembleR2`.  
 
-The best overall model is `r bestOverallModel`with RMSE value of `r bestOverallRMSE`, and R Squared value of `r bestOverallR2`.
+The best overall model is `r bestOverallModel` with RMSE value of `r bestOverallRMSE`, and R Squared value of `r bestOverallR2`.
 
 
 
