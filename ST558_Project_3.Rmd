@@ -24,12 +24,18 @@ nameOFProj <- str_split(nameOFProj, "_")[[1]][4]
 nameOFProj <- toupper(nameOFProj)
 ```  
 # Introdcution  
-We are living in a digital world where people are more concerned about the digital footprint and people often consider the like and shares they get on a post that they publish online as an important metric. We have several social media websites and print media to share our articles. Online print media platform like [Mashable](www.mashable.com) publishes thousand of online media everyday and it is important for them get a more user engagement from the the article they post online. In this data set we are trying to predict the shares based on several predictor, such as text sentiment polarity, rate of negative words, rate of positive words, and many more.
-Why this analysis is important ? From this predictive model, Mashable can predict the number of shares they can receive based on the type of article they are publishing online.  
+We are living in a digital world where people are more concerned about the digital footprint and people often consider the like and shares they get on a post that they publish online as an important metric. We have several social media websites and print media to share our articles. Online print media platform like [Mashable](www.mashable.com) publishes thousand of online media everyday and it is important for them get a more user engagement from the the article they post online. In this data set we are trying to predict the shares using that data that would have several potential influencing factors, in other words, predictors, such as text sentiment polarity, rate of negative words, rate of positive words, to name some.
+
+Why this analysis is important ? 
+From this predictive model, Mashable can potentially predict the number of shares they can receive based on the type of article they are publishing online.  
 
 
 # Data
-The data set summarizes a heterogeneous set of features about articles published by in a period of two years.The data set has 39644 data points and 61 feature columns. The project is aimed to subset the original data set based on type of data channel (one of the six type) and then to predict the number of shares. For our project we are using **`r nameOFProj`** data channel for training and building a predictive modeling and eventually extending same model to other five data channel. User will have flexibility to choose the type of analysis they want based on their personal choice.  
+
+The data set summarizes a heterogeneous set of features about articles published by in a period of two years.The data set has 39644 entries and 61 feature columns. The project is aimed to subset the original data set based on type of data channel (one of the six type) and then to predict the number of shares. 
+
+For this part of the project we are using **`r nameOFProj`** data channel for training and building a predictive modeling and extending same models to other five data channels.
+
 ```{r dataset, warning=FALSE, message=FALSE}
 newspopData <- read_csv('OnlineNewsPopularity.csv')
 
@@ -41,14 +47,36 @@ newspopData <- newspopData %>% filter(newspopData[params$data_channel] == 1) %>%
 newspopData
 ```  
 # Exploratory Data Analysis  
-Before starting EDA, target variable need to be normalize as it has high variance.  
+
+```{r}
+summary(newspopData$shares)
+
+```
+
+Dividing the popularity of the shares based on quantiles to classify them as to how popular they are. The 1st quarter percentile would be popularity index 4, next quarter be index 3, so on and so forth. Higher the number of shares of that article, higher the popularity index.
+```{r}
+
+pShares <- newspopData$shares
+pShares <- sort(pShares)
+
+quantileValues <- quantile(pShares, c(.25, .5, .75)) 
+
+newspopData <- newspopData %>% mutate(article_popularity_index = if_else(shares<quantileValues[1], "4",
+                                                                  if_else(shares<quantileValues[2], "3",
+                                                                  if_else(shares<quantileValues[3],"2", "1"))))
+
+newspopData$article_popularity_index <- as_factor(newspopData$article_popularity_index)
+```
+
+Starting EDA with the visualization of the target variable shares as a function of the most obvious factor, number of words in the article:  
 ```{r eda, warning=FALSE, message=FALSE}
+
 newspopData$scaledShare <- scale(newspopData$shares, center = T, scale = T)
 
 #calculating correlation index
-corr.index <- round(cor(newspopData$scaledShare, newspopData$n_tokens_content),2)
+corrIndex <- round(cor(newspopData$scaledShare, newspopData$n_tokens_content),2)
 
-# scatterplot
+# plotting the shares as a function of words in an article
 ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
   geom_point()+
   labs(subtitle = 'Word Count v/s Number of Shares',
@@ -56,12 +84,13 @@ ggplot(newspopData, aes(x= n_tokens_content, y = scaledShare)) +
       x = 'Number of Words in article', 
       title = toupper(str_replace_all(params$data_channel, "_", " ")),
       caption = 'Source: News Popularity Dataset') + 
-      geom_text(x = max(newspopData$n_tokens_content)-3000, y = max(newspopData$scaledShare)-40, size = 4, 
-                label = paste0("Correlation coefficient = ", corr.index), color = 'red')
+      geom_text(x = max(newspopData$n_tokens_content)/2, 
+                y = max(newspopData$scaledShare)/2, size = 4, 
+                label = paste0("Correlation coefficient = ", corrIndex), color = 'red')
 
 ```  
 
-We can inspect trend of Number of shares (scaled) as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficient.  
+We can inspect trend of Number of shares as a function of Number of words in the article. If the points show an upward trend, then the article with high number of words are shared more. However, if we see a negative trend then we can estimate that with increasing number of words in the article, number of shares decreases. This trend can be investigated further with the correlation coefficientm which in this case is `r corrIndex`.  
 
 
 Now, creating a new variable here that help eliminates the dummy variable for each day of the week. This new variable will take the value of each day of the week that corresponds to the dummy variable's value:
@@ -81,10 +110,14 @@ newspopData$day <- as_factor(newspopData$day)
 ```
 
 
-Some statistics based on  this new variable is as shown:
+Some statistics based on  the variables is as shown:
 
 ```{r, message=FALSE, warning=FALSE}
 knitr::kable(newspopData %>% group_by(day) %>% summarize(Count_of_Articles = n()))
+```
+
+```{r, message=FALSE, warning=FALSE}
+knitr::kable(newspopData %>% group_by(day, article_popularity_index) %>% summarize(Count_of_Articles = n()))
 ```
 
 This table shows the shares of articles on each day of the week. For tech based articles, we can expect a rise in shares in mid week or Fridays or after any tech has been launched. For entertainment and lifestyle articles, post-weekend period would be the most active period of sharing. While world, social media and business would not have a definitive trend.
@@ -106,8 +139,9 @@ From this bar chart we can visualize the shares trend across the week. The users
 
 ```{r, message=FALSE, warning=FALSE}
 ggplot(newspopData, aes(x = global_rate_positive_words, y = global_sentiment_polarity)) +
-  geom_point(aes(col = day, size = shares/1e6)) + 
-      geom_smooth(aes(col = day), method = 'lm', se = F) + 
+       geom_point(aes(col = day, shape = article_popularity_index)) + 
+       geom_smooth(aes(col = day), method = 'lm', se = F) + 
+       scale_shape_discrete(name="Article Popularity Index", labels = c("4", "3", "2", "1"))+
        labs(subtitle = 'Positive Rate VS Sentiment Polarity Plot',
        x = 'Global Positive Word Rate',
        y = 'Global Sentiment Polarity',
@@ -123,9 +157,10 @@ ggplot(newspopData, aes(x = global_rate_positive_words, y = global_sentiment_pol
 
 ```{r, message=FALSE, warning=FALSE}
 ggplot(newspopData, aes(x = global_rate_negative_words, y = global_sentiment_polarity)) + 
-      geom_point(aes (col = day, size = shares/1e6)) + 
+      geom_point(aes (col = day, shape = article_popularity_index)) + 
       geom_smooth(aes(col = day), method = 'lm', se = F) + 
-  labs(subtitle = 'Positive Rate VS Sentiment Polarity Plot',
+      scale_shape_discrete(name="Article Popularity Index", labels = c("4", "3", "2", "1"))+
+      labs(subtitle = 'Positive Rate VS Sentiment Polarity Plot',
        x = 'Global Negative Word Rate',
        y = 'Global Sentiment Polarity',
        title = toupper(str_replace_all(params$data_channel, "_", " ")),
@@ -135,7 +170,7 @@ ggplot(newspopData, aes(x = global_rate_negative_words, y = global_sentiment_pol
        theme(plot.caption = element_text(size=9, color="red", face="italic", hjust = 1))  
 ```  
 
-This plot estimates the general sentiments of users based on positive and negative words in the content. As expected, an article with more positive words has a positive sentiment index and more shares.
+The above plots estimate the general sentiments of users based on positive and negative words in the content. Ideal expectations would be: an article with more positive words has a positive sentiment index and more shares, and vice versa. Exceptions may be found in peculiar cases.
 
 Plotting the number of shares based on the number of images and videos that an article has, based on what day of the week it is:
 
@@ -193,11 +228,13 @@ newspopData$title_Sentiment_Class <- as_factor(newspopData$title_Sentiment_Class
 Statistics about the articles that are in each of these categories:
 
 ```{r, message=FALSE, warning=FALSE}
-
 knitr::kable(newspopData %>% group_by(title_Sentiment_Class) %>% summarize(Count_of_articles = n()))
-
 ```
-The table above represents the number of articles classified into each title sentiment category.
+
+```{r, message=FALSE, warning=FALSE}
+knitr::kable(newspopData %>% group_by(title_Sentiment_Class, article_popularity_index) %>% summarize(Count_of_articles = n()))
+```
+The tables above represents the number of articles classified into each title sentiment category, and based on their popularity index.
 
 
 ```{r, message=FALSE, warning=FALSE}
@@ -269,32 +306,49 @@ The plot above shows the density of distribution of the shares of each type of t
 
 
 # Modelling  
-From the shares distribution, we can estimate that the distribution is left-skewed. After using log transformation, shares distribution can be estimated as normal
 
-```{r}
-par(mfrow = c(1,2))
+Firstly, we are checking for the skewness in the data set for the response variable that is **"shares"**. For that we are plotting the distribution for the data of that variable below:
+
+```{r, message=FALSE, warning=FALSE}
 ggplot(newspopData) + geom_density(aes(x = shares))+ 
   labs(title = "Shares Predictor Distribution in Dataset")
-ggplot(newspopData) + geom_density(aes(x = log(shares)))+
-  labs(title = "Log(Share) distribution in the Dataset")
-
-# train test split
-set.seed(42)
-#removing mutated variables from the dataset
-lmData <- newspopData %>% select(-day, 
-         -title_Sentiment_Class,
-         -content_Sentiment_Class)
-lmData$logShares <- log(lmData$shares)
-index <- sample(1:dim(lmData)[1], dim(newspopData)[1]*0.7, replace = F)
-trainDf <- lmData[index, ] %>% select(-shares)
-testDf  <- lmData[-index, ] %>% select(-shares)
 
 ```  
 
+  
+From the plot above showing distribution of shares, we can see that the distribution is left-skewed. To mitigate this, we are taking a log transform of that variable. 
+
+```{r, message=FALSE, warning=FALSE}
+ggplot(newspopData) + geom_density(aes(x = log(shares)))+
+  labs(title = "Logarithmic transformation of shares distribution")
+```
+  
+As seen from the plot above, after doing the log transformation, shares distribution can be estimated as a normal distribution, which will be better for the models that we would be fitting for this project. Hence, for all the models that are built in this project, the target response variable is the log transform **("logShares")** of the original shares variable.
+
+```{r, message=FALSE, warning=FALSE}
+set.seed(42)
+
+# Removing mutated variables from the data set
+lmData <- newspopData %>% select(-day, -title_Sentiment_Class, -content_Sentiment_Class, -article_popularity_index)
+
+lmData$logShares <- log(lmData$shares)
+
+# train test split
+index <- createDataPartition(newspopData$shares, p = 0.7, list = FALSE)
+
+# Removing the shares variable because we are using logShares as response
+trainDf <- lmData[index, ] %>% select(-shares)
+testDf  <- lmData[-index, ] %>% select(-shares)
+
+
+```
+
 ## Variable Selection  
-For variable selection we used p-test values to consider significant coefficients from the linear model fit. For a confidence interval of 95%, the significant predictors are used to fit a linear and Lasso regression model.
-For the significant parameter selection, our NULL and Alternate hypothesis is explained below:
-  H~0: All coefficients have zero slope
+
+
+For variable selection we used p-test values to consider significant coefficients from the linear model fit. For a confidence interval of 95%, the significant predictors are used to fit a Linear and a Lasso regression model.
+For the significant parameter selection, our NULL and Alternate hypothesis is explained below:  
+  H~0: All coefficients have zero slope  
   H~a: At-least one predictor variable has a non-zero slope  
   
 ```{r}
@@ -303,9 +357,11 @@ modelLmVar <- lm(logShares~. ,data = trainDf)
 # getting p-values 
 pVal <- data.frame(summary(modelLmVar)$coefficients[,4])
 pVal$row_names <- row.names(pVal)
+
 # checking if slope of intercept is significant (i.e. <<< 0.05)
 pVal <- pVal %>% filter(pVal[,1] < 0.05)
 cols = c()
+
 # remove intercept term and store all significant intercepts in "cols" variable 
 if (pVal[,2][1] == "(Intercept)"){
   cols = pVal[,2][-1]
@@ -315,11 +371,14 @@ if (pVal[,2][1] == "(Intercept)"){
 cols
 
 ```
-
+  
 ## Multiple Linear Regression Model  
-Linear regression is a regression model that uses a straight line to describe a relationship between two or more predictor and a response variable. In news popularity dataset we have 54 predictor variable and a response variable (shares).
+
+Linear regression is a regression model that uses a straight line to describe a relationship between two or more predictor and a response variable. Out of the 54 predictor variables in the data set, the predictors that were deemed significant from the step above are used in this model, with a response variable of logShares.
+
 ```{r}
 trControl <- trainControl(method = 'repeatedcv', number = 10)
+
 # model training
 modelLm <- train(logShares ~ .,
               data = trainDf %>% 
@@ -328,29 +387,35 @@ modelLm <- train(logShares ~ .,
               preProcess = c('center', 'scale'),
               trControl = trControl)
 
-#summary(modelLm)
 title = toupper(str_replace_all(params$data_channel, "_", " "))
 
 # variable importance for linear model
 plot(varImp(modelLm), 
      main = paste("Variable importance Plot for ", "\n", title))
 
-# prediction using linear regression model
 lmPredict <- predict(modelLm, newdata = testDf %>% select(all_of(cols), logShares))
 lmRes <- postResample(lmPredict, obs = testDf$logShares)
 
 
 # Adjusted R-square
- n <- dim(testDf)[1]
- p <- dim(testDf %>% select(all_of(cols)))[2]
- adjR2Linear <-  1-(((1-lmRes[2]^2)*(n-1))/(n-p-1))  
+n <- dim(testDf)[1]
+p <- dim(testDf %>% select(all_of(cols)))[2]
+adjR2Linear <-  1-(((1-lmRes[2]^2)*(n-1))/(n-p-1))  
  
- lmRes
+lmRes
 ```  
 
 ## Lasso Regression  
+
+LASSO or the Least Absolute Shrinkage and Selection Operator is a special type of linear model that uses penalty based shrinkage. Shrinkage here means converging data values to a central point, or where the absolute magnitude of the coefficients are shrunk to a 0 based on L1 regularization penalty method which adds a penalty factor(lambda) for every misclassified or wrongly predicted values.
+
+LASSO generally works well with models having less variable parameters. From the above process, we have narrowed down a few most influencing and statistically significant variables which we will be using for this model as well.
+
+The caret package is used to train the model here using the **lasso** method. The prediction metrics are then derived using the postResample function. The same predictor and response variable from the model above are used here as well.
 ```{r, message=FALSE, warning=FALSE}
 set.seed(43)
+
+# train
 fitControl <- trainControl(method = "repeatedcv",number = 5)
 fitLASSO <- train(logShares ~ . ,
                   data=trainDf,
@@ -370,40 +435,43 @@ lassoRes <- postResample(predLASSO, obs = testDf$logShares)
 
 
 # Adjusted R-square
- n <- dim(testDf)[1]
- p <- dim(testDf)[2]
- adjR2Lasso <-  1-(((1-lassoRes[2]^2)*(n-1))/(n-p-1))
- 
- lassoRes
+n <- dim(testDf)[1]
+p <- dim(testDf)[2]
+adjR2Lasso <-  1-(((1-lassoRes[2]^2)*(n-1))/(n-p-1))
+
+lassoRes
 ```
 
 ## Random Forest
 
-Since the data set is high dimensional, it would be easier to select the "best" subsets of variables for random forest ensemble tree learning method. More details about Random Forest is given before the model is formulated.
+Before building the random forest model, seeing at the data, the data set is high dimensional, hence, it would be easier to select the "best" subsets of variables for random forest ensemble tree learning method to make the process more efficient. More details about Random Forest is given before the model is formulated.
 
-## Variable Selection: Principal Component Analysis
+## Best Variable Selection: Principal Component Analysis
 
 Since the data set includes a large number of variables, it becomes important to select the best subsets of the data that defines the data set and variations in the data set for number of shares. To get these variables, here we are conducting Principal Component Analysis (PCA). PCA standardizes the variables, and represent new variables/PCs that are a function of the original variables from the data set. 
 
 Again, to keep the models separate, we are again splitting the data into train and test data set, and removing the categorical variables that were added previously in the data. After that the PCs are formulated.
 ```{r, message=FALSE, warning=FALSE}
 set.seed(200)
+
 newspopData$logShares <- log(newspopData$shares)
+
 trainIndex <- createDataPartition(newspopData$shares, p = 0.7, list = FALSE)
 
 trainData <- newspopData[trainIndex, ]
 testData <- newspopData[-trainIndex, ]
-
 ```
 
 Creating new PCs, and plotting the cumulative variance graph:
 
 ```{r, message=FALSE, warning=FALSE}
 
+# Removing shares, logShares and mutated variables to form PCs
 PCs <- prcomp(trainData %>% 
                 select(-shares, -logShares, -day, 
                        -title_Sentiment_Class, 
-                       -content_Sentiment_Class), 
+                       -content_Sentiment_Class,
+                       -article_popularity_index), 
                         center=TRUE, scale=TRUE)
 
 # cumulative variance
@@ -418,24 +486,27 @@ points(pt, var[pt], col="red", cex=2, pch=20)
 text(8, 0.8, col="red", paste0(round(100*var[pt],2), "% variance \nis explained by ", pt, " \nnumber of PC(s)"))
 ```
 
-From the above graph, we can see that at least 80% variance is explained by `r pt` PCs, and hence for the subsequent steps`r pt` PCs will be used.
+From the above graph, we can see that at least 80% variance is explained by `r pt` PCs, and hence for the subsequent steps, `r pt` PCs will be used.
 
 Now, we are creating the training data for Random Forest Ensemble model.
 ```{r, message=FALSE, warning=FALSE}
 
+# Creating training data PCs without the logShares variables
 treeTrainData <- predict(PCs, newdata = trainData %>% select(-shares, -logShares)) %>% 
   as_tibble() %>% 
   select(PC1:paste0("PC", pt))
 
 treeTrainData$logShares <- trainData$logShares
+
+# This the final training data that will be used to train random forest model
 treeTrainData
 ```
 
-### Random Forest:
+### Random Forest Model:
 
 Random Forest model is a tree based ensemble learning method where the training data set is sampled into smaller data sets, and some variables from the data set are included in the smaller sampled data. A tree is fitted to that data. This method is repeated several times, and finally a model is finalized that will be an average of all these sampled tree models. Since Random Forest takes only a subset of variables in any given sampling, it creates really strong model to predict on with unknown variables since the sampled data is able to explain variance much better with fewer variables.
 
-We are using train() function from caret package to train the Random Forest model. Pre-processing is done by centering and scaling the data, and a 3 fold cross validation is also. (The value 3 is selected to have some computation ease). Lastly, the model is tried for a number of values for the tuning parameter "mtry".
+We are using train() function from caret package to train the Random Forest model using the **rf** method. Pre-processing is done by centering and scaling the data, and a 3 fold cross validation is also used. (The value 3 is selected to have some computation ease). Lastly, the model is tried for a number of values for the tuning parameter "mtry", out of which the best mtry value is selected.
 
 Training the model:
 ```{r, message=FALSE, warning=FALSE}
@@ -452,14 +523,15 @@ randomForest
 ```
 
 
-Testing the model on the test data set to see the metrics of evaluation. The predict() function is used to create both PC based testing data, and to predict the number of shares using the Random Forest model. Further, the postResample() function is used to extract metrics such as RMSE, R-Squared, and MAE, represented below.
+Testing the model on the test data set to see the metrics of evaluation. The predict() function is used to create both PC based testing data, and to predict the logShares using the Random Forest model. Further, the postResample() function is used to extract metrics such as RMSE, R-Squared, and MAE, represented below.
 
 ```{r, message=FALSE, warning=FALSE}
-
+# Creating test data PCs
 treeTestData <- predict(PCs, newdata = testData %>% select(-shares, -logShares)) %>% 
                          as_tibble() %>% 
                          select(PC1:paste0("PC", pt))
 
+# Completing the test data
 treeTestData$logShares <- testData$logShares
 
 rfPredict <- predict(randomForest, newdata = treeTestData)
@@ -467,20 +539,23 @@ randomFRes <- postResample(rfPredict, obs = treeTestData$logShares)
 
 
 # Adjusted R-square
- n <- dim(treeTestData)[1]
- p <- dim(treeTestData)[2] - 1
- adjR2Rf <-  1-(((1-randomFRes[2]^2)*(n-1))/(n-p-1))
+n <- dim(treeTestData)[1]
+p <- dim(treeTestData)[2] - 1
+adjR2Rf <-  1-(((1-randomFRes[2]^2)*(n-1))/(n-p-1))
  
- randomFRes
- 
+randomFRes
 ```
 
-The Random Forest model has a RMSE value `r randomFRes[[1]]`, R-Squared Value `r randomFRes[[2]]`, and MAE value `r randomFRes[[3]]`.
+## Boosted Tree Model
 
-## Boosted Tree  
-Boosting is another tree based approach for improving the predictions resulting from a decision tree. Like other tree models, boosting can be applied for classification and regression. Boosting works in **sequentially**: each tree is grown using information from previously grown trees. In this project, we are using **gbm** package within caret train function. 
+Boosting is another tree based approach for improving the predictions resulting from a decision tree. Like other tree models, boosting can be applied for classification and regression. Boosting works in **sequentially**: each tree is grown using information from previously grown trees. In this project, we are using **gbm** method within caret train function. 
+
 An additional input tunegrid also provided to train function, which will find best hyper parameter combinations of number of trees, and depth. 
+
+Here, all the available parameters are used as predictor variables, and logShares is the target response variable.
 ```{r, message=FALSE, warning=FALSE}
+
+# Training the model
 boostedTree <- train(logShares ~., data = trainData %>% select(-shares), method = "gbm",
                      trControl = trainControl(method = "repeatedcv", number = 3),
                      preProcess = c("center", "scale"),
@@ -490,9 +565,12 @@ boostedTree <- train(logShares ~., data = trainData %>% select(-shares), method 
                                             n.minobsinnode = 10),
                      verbose = FALSE)
 
-boostedTPredict <- predict(boostedTree, newdata = testData %>% select(-shares))
-boostedTRes <- postResample(boostedTPredict, obs = (testData %>% select(-shares))$logShares)
+# Best combination of tuning hyperparameters
+print(boostedTree$bestTune)
 
+boostedTPredict <- predict(boostedTree, newdata = testData %>% select(-shares))
+
+boostedTRes <- postResample(boostedTPredict, obs = (testData %>% select(-shares))$logShares)
 
 # plot
 plot(boostedTree, xlab = "Max Tree Depth ", 
@@ -502,18 +580,19 @@ plot(boostedTree, xlab = "Max Tree Depth ",
 
 
 # Adjusted R-square
- n <- dim(testData)[1]
- p <- dim(testData)[2] - 1
- adjR2Boosted <-  1-(((1-boostedTRes[2]^2)*(n-1))/(n-p-1))
+n <- dim(testData)[1]
+p <- dim(testData)[2] - 1
+adjR2Boosted <-  1-(((1-boostedTRes[2]^2)*(n-1))/(n-p-1))
  
- boostedTRes
- boostedTree$bestTune
+
+boostedTRes
 ```  
 
-From the plot we can visualize that using tunegrid we have a combinations of parameters that can be used to find minimum RMSE value using Boosted tree algorithm. From the plot we can see that at depth = 1 and number of tree at 100, model finds lowest RMSE and same can be corroborated from finding best model **(boostedTree$bestTune)**  
+From the plot we can visualize the best combinations of parameters that were used to find minimum RMSE value using Boosted tree algorithm, which can also be seen by using **(boostedTree$bestTune)** function. 
 
 
 ## Model Comparision  
+
 ```{r, message=FALSE, warning=FALSE}
 
 model_types = c("Linear", "Ensemble")
@@ -583,9 +662,15 @@ if (length(unique(modelComparisonDf$R_Squared)) > 1){
 ```
 
 ## Conclusion  
-Selection of best model is based upon the lowest RMSE value.  
-For the data set for `r toupper(str_split(params$data_channel, "_")[[1]][4])`, the best linear model is `r bestLinearModel` with RMSE value of `r bestLinearRMSE`, and R Squared value of `r bestLinearR2`.  
+
+Selection of best model is based on comparing the lowest prediction RMSE value across all models.  
+
+For the data set for **`r toupper(str_split(params$data_channel, "_")[[1]][4])`**: 
+
+The best linear model is `r bestLinearModel` with RMSE value of `r bestLinearRMSE`, and R Squared value of `r bestLinearR2`.  
+
 The best ensemble method is `r bestEnsembleModel` with RMSE value of `r bestEnsembleRMSE`, and R Squared value of `r bestEnsembleR2`.  
+
 The best overall model is `r bestOverallModel` with RMSE value of `r bestOverallRMSE`, and R Squared value of `r bestOverallR2`.  
 
 
