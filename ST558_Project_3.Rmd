@@ -298,10 +298,10 @@ For the significant parameter selection, our NULL and Alternate hypothesis is ex
   H~a: At-least one predictor variable has a non-zero slope  
   
 ```{r}
-modelLm <- lm(logShares~. ,data = trainDf)
+modelLmVar <- lm(logShares~. ,data = trainDf)
 
 # getting p-values 
-pVal <- data.frame(summary(modelLm)$coefficients[,4])
+pVal <- data.frame(summary(modelLmVar)$coefficients[,4])
 pVal$row_names <- row.names(pVal)
 # checking if slope of intercept is significant (i.e. <<< 0.05)
 pVal <- pVal %>% filter(pVal[,1] < 0.05)
@@ -336,41 +336,17 @@ plot(varImp(modelLm),
      main = paste("Variable importance Plot for ", "\n", title))
 
 # prediction using linear regression model
-lmPredict <- predict(modelLm, newdata = testDf)
+lmPredict <- predict(modelLm, newdata = testDf %>% select(all_of(cols), logShares))
 lmRes <- postResample(lmPredict, obs = testDf$logShares)
-lmRes
+
+
+# Adjusted R-square
+ n <- dim(testDf)[1]
+ p <- dim(testDf %>% select(all_of(cols)))[2]
+ adjR2Linear <-  1-(((1-lmRes[2]^2)*(n-1))/(n-p-1))  
+ 
+ lmRes
 ```  
-
-## Linear Model Visulaization (Residual Plot)
-```{r, include=FALSE, eval=FALSE}
-ggplot(data = testDf, aes(x = lmPredict, y = log(shares))) +
-  geom_point(alpha = 0.2, color = "blue") +
-  geom_smooth(aes(x = lmPredict,
-                  y = log(shares)), color="blue") +
-  geom_line(aes(x = log(shares),
-                y = log(shares)), color = "black", 
-            linetype = 2, size = 1)+
-  labs(x = 'Predicted Shares',
-       y = 'Actul log(Shares)',
-       title = paste("For", title))
-
-```  
-
-```{r, include=FALSE, eval=FALSE}
-# residual plot
-ggplot(data = testDf, aes(x = lmPredict,
-                      y = lmPredict - log(shares))) +
-  geom_point(alpha = 0.2, color = "blue") +
-  geom_smooth(aes(x = lmPredict,
-                  y = lmPredict - log(shares)),
-              color="black") +
-        labs(x = 'Predicted Shares',
-             y = 'Residuals',
-             title = paste("For", title))
-
-```    
-In ideal scenario, residuals must be centered around the zero line to fulfill the linear regression model assumptions. From the plot we can fairly assume that the residuals are centered around the zero mean.  
-
 
 ## Lasso Regression  
 ```{r, message=FALSE, warning=FALSE}
@@ -391,7 +367,14 @@ coeff <- predict(fitLASSO$finalModel, type = "coef", mode = "fraction",
 
 
 lassoRes <- postResample(predLASSO, obs = testDf$logShares)
-lassoRes
+
+
+# Adjusted R-square
+ n <- dim(testDf)[1]
+ p <- dim(testDf)[2]
+ adjR2Lasso <-  1-(((1-lassoRes[2]^2)*(n-1))/(n-p-1))
+ 
+ lassoRes
 ```
 
 ## Random Forest
@@ -481,7 +464,15 @@ treeTestData$logShares <- testData$logShares
 
 rfPredict <- predict(randomForest, newdata = treeTestData)
 randomFRes <- postResample(rfPredict, obs = treeTestData$logShares)
-randomFRes
+
+
+# Adjusted R-square
+ n <- dim(treeTestData)[1]
+ p <- dim(treeTestData)[2] - 1
+ adjR2Rf <-  1-(((1-randomFRes[2]^2)*(n-1))/(n-p-1))
+ 
+ randomFRes
+ 
 ```
 
 The Random Forest model has a RMSE value `r randomFRes[[1]]`, R-Squared Value `r randomFRes[[2]]`, and MAE value `r randomFRes[[3]]`.
@@ -508,7 +499,14 @@ plot(boostedTree, xlab = "Max Tree Depth ",
      ylab = "Root Mean Square Error (Found through CV)", 
      main = "All Predictors - Minimizing RMSE")
 
-boostedTRes
+
+
+# Adjusted R-square
+ n <- dim(testData)[1]
+ p <- dim(testData)[2] - 1
+ adjR2Boosted <-  1-(((1-boostedTRes[2]^2)*(n-1))/(n-p-1))
+ 
+ boostedTRes
 ```
 
 
@@ -517,12 +515,11 @@ boostedTRes
 
 model_types = c("Linear", "Ensemble")
 
-modelComparisonDf = tibble(model = c("Linear Model"), model_type = c(model_types[1]), RMSE = c(round(lmRes[[1]],2)), R_Squared = c(round(lmRes[[2]], 4)))
+modelComparisonDf = tibble(model = c("Linear Model"), model_type = c(model_types[1]), RMSE = c(round(lmRes[[1]],3)), R_Squared = c(round(lmRes[[2]], 4)), Adj_R2 = c(round(adjR2Linear,4)) )
 
-#modelComparisonDf <- rbind(modelComparisonDf, c("Stepwise Forward", swForwardRes[[1]], swForwardRes[[2]]))
-modelComparisonDf <- rbind(modelComparisonDf, c("LASSO", model_types[1], round(lassoRes[[1]],2), round(lassoRes[[2]],4)))
-modelComparisonDf <- rbind(modelComparisonDf, c("Random Forest", model_types[2], round(randomFRes[[1]],2), round(randomFRes[[2]],4)))
-modelComparisonDf <- rbind(modelComparisonDf, c("Boosted Trees", model_types[2], round(boostedTRes[[1]],2), round(boostedTRes[[2]],4)))
+modelComparisonDf <- rbind(modelComparisonDf, c("LASSO", model_types[1], round(lassoRes[[1]],3), round(lassoRes[[2]],4), round(adjR2Lasso,4)))
+modelComparisonDf <- rbind(modelComparisonDf, c("Random Forest", model_types[2], round(randomFRes[[1]],3), round(randomFRes[[2]],4), round(adjR2Rf,4)))
+modelComparisonDf <- rbind(modelComparisonDf, c("Boosted Trees", model_types[2], round(boostedTRes[[1]],3), round(boostedTRes[[2]],4), round(adjR2Boosted,4)))
 
 knitr::kable(modelComparisonDf)
 
@@ -553,9 +550,9 @@ if (length(unique(lineardf$R_Squared)) > 1){
   bestLinearRMSE <- lineardf[which.min(lineardf$RMSE),][[3]]
   bestLinearR2 <- lineardf[which.min(lineardf$RMSE),][[4]]
 } else{
-  bestLinearModel <- lineardf[which.max(lineardf$R_Squared),][[1]]
-  bestLinearRMSE <- lineardf[which.max(lineardf$R_Squared),][[3]]
-  bestLinearR2 <- lineardf[which.max(lineardf$R_Squared),][[4]]
+  bestLinearModel <- lineardf[which.max(lineardf$Adj_R2),][[1]]
+  bestLinearRMSE <- lineardf[which.max(lineardf$Adj_R2),][[3]]
+  bestLinearR2 <- lineardf[which.max(lineardf$Adj_R2),][[4]]
 }
 
 
@@ -564,9 +561,9 @@ if (length(unique(ensembleDf$R_Squared)) > 1){
   bestEnsembleRMSE <- ensembleDf[which.min(ensembleDf$RMSE),][[3]]
   bestEnsembleR2 <- ensembleDf[which.min(ensembleDf$RMSE),][[4]]
 } else{
-  bestEnsembleModel <- ensembleDf[which.max(ensembleDf$R_Squared),][[1]]
-  bestEnsembleRMSE <- ensembleDf[which.max(ensembleDf$R_Squared),][[3]]
-  bestEnsembleR2 <- ensembleDf[which.max(ensembleDf$R_Squared),][[4]]
+  bestEnsembleModel <- ensembleDf[which.max(ensembleDf$Adj_R2),][[1]]
+  bestEnsembleRMSE <- ensembleDf[which.max(ensembleDf$Adj_R2),][[3]]
+  bestEnsembleR2 <- ensembleDf[which.max(ensembleDf$Adj_R2),][[4]]
 }
 
 
@@ -575,18 +572,18 @@ if (length(unique(modelComparisonDf$R_Squared)) > 1){
   bestOverallRMSE <- modelComparisonDf[which.min(modelComparisonDf$RMSE),][[3]]
   bestOverallR2 <- modelComparisonDf[which.min(modelComparisonDf$RMSE),][[4]]
 } else{
-  bestOverallModel <- modelComparisonDf[which.max(modelComparisonDf$R_Squared),][[1]]
-  bestOverallRMSE <- modelComparisonDf[which.max(modelComparisonDf$R_Squared),][[3]]
-  bestOverallR2 <- modelComparisonDf[which.max(modelComparisonDf$R_Squared),][[4]]
+  bestOverallModel <- modelComparisonDf[which.max(modelComparisonDf$Adj_R2),][[1]]
+  bestOverallRMSE <- modelComparisonDf[which.max(modelComparisonDf$Adj_R2),][[3]]
+  bestOverallR2 <- modelComparisonDf[which.max(modelComparisonDf$Adj_R2),][[4]]
 }
 
 ```
 
-
+## Conclusion  
+Selection of best model is based upon the lowest RMSE value.  
 For the data set for `r toupper(str_split(params$data_channel, "_")[[1]][4])`, the best linear model is `r bestLinearModel` with RMSE value of `r bestLinearRMSE`, and R Squared value of `r bestLinearR2`.  
 The best ensemble method is `r bestEnsembleModel` with RMSE value of `r bestEnsembleRMSE`, and R Squared value of `r bestEnsembleR2`.  
-
-The best overall model is `r bestOverallModel` with RMSE value of `r bestOverallRMSE`, and R Squared value of `r bestOverallR2`.
+The best overall model is `r bestOverallModel` with RMSE value of `r bestOverallRMSE`, and R Squared value of `r bestOverallR2`.  
 
 
 
